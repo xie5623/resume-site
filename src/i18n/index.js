@@ -16,9 +16,9 @@
    ============================================================ */
 
 import { ref } from 'vue'
-import { CONFIG, DEFAULT_VERSION } from '@/config/site.config'
+import { CONFIG } from '@/config/site.config'
 import { version } from '@/composables/useVersion'
-import { MESSAGES } from './messages'
+import { resolveContent } from '@/content/useContent'
 
 export const STORAGE_KEY = 'resume-site.lang'
 export const SUPPORTED_LANGS = ['zh', 'en']
@@ -58,29 +58,19 @@ export function toggleLang() {
   setLang(lang.value === 'zh' ? 'en' : 'zh')
 }
 
-/* ---------- 取文案（支持嵌套对象点路径） ---------- */
-function resolvePath(obj, path) {
-  return path.split('.').reduce((acc, k) => (acc == null ? acc : acc[k]), obj)
-}
-
+/* ---------- 取文案（读内容层响应式 store，控制台改内容 → 页面实时变） ---------- */
 /**
  * t(key) — 翻译函数。
- * 按「当前版本 → 当前语言」取文案；当前版本取不到时依次回退：
- *   当前版本 zh → 默认版本(资深版)当前语言 → 默认版本 zh → key 本身。
- * 值可以是字符串或数组（列表占位直接返回数组，模板里 v-for 即可）。
- * 语言/版本切换后自动响应（内部读取 lang.value 与 version.value，
+ * 按「当前模板 → 当前语言」从内容层 useContent 取文案，带回退链
+ * （[template][lang] → [template][zh] → [默认模板][lang] →
+ *  [默认模板][zh] → key 本身），见 resolveContent。
+ * 值可以是字符串或数组（列表直接返回数组，模板里 v-for 即可）。
+ * 语言/模板切换后自动响应（内部读取 lang.value 与 version.value，
  * 在渲染上下文中被追踪）。
  */
 export function t(key) {
-  const v = MESSAGES[version.value] ? version.value : DEFAULT_VERSION
-  const ns = MESSAGES[v]?.[lang.value] ?? MESSAGES[v]?.zh
-  const val = resolvePath(ns, key)
-  if (val != null) return val
-  const seniorNs = MESSAGES[DEFAULT_VERSION]?.[lang.value] ?? MESSAGES[DEFAULT_VERSION]?.zh
-  const seniorVal = resolvePath(seniorNs, key)
-  if (seniorVal != null) return seniorVal
-  const zhVal = resolvePath(MESSAGES[DEFAULT_VERSION]?.zh, key)
-  return zhVal ?? key
+  const v = resolveContent(version.value, lang.value, key)
+  return v ?? key
 }
 
 /* ---------- composable：组件内使用 ---------- */

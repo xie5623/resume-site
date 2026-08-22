@@ -89,7 +89,7 @@
   transform: translateY(-1px);
 }
 .glass-btn--accent {
-  color: #0a0e1a;
+  color: var(--on-accent);
   background: var(--accent-gradient);
   border-color: transparent;
   font-weight: 700;

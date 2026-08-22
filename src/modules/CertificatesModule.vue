@@ -7,130 +7,33 @@
 import { computed } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ---------- 按版本分区双语词典（键名按模块命名空间） ---------- */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'certificates.title': '证书认证',
-      'certificates.subtitle': '专业资格与荣誉（占位示例）',
-      'certificates.issuedBy': '颁发方',
-      'certificates.item1.name': '高级前端工程师认证',
-      'certificates.item1.issuer': '示例认证机构',
-      'certificates.item1.year': '2023',
-      'certificates.item2.name': '全栈开发训练营优秀学员',
-      'certificates.item2.issuer': '示例训练营',
-      'certificates.item2.year': '2022',
-      'certificates.item3.name': 'UI 设计基础认证',
-      'certificates.item3.issuer': '示例设计学院',
-      'certificates.item3.year': '2021',
-      'certificates.item4.name': '英语六级（CET-6）',
-      'certificates.item4.issuer': '教育考试中心',
-      'certificates.item4.year': '2020',
-      'certificates.item5.name': '云计算工程师（初级）',
-      'certificates.item5.issuer': '示例云厂商',
-      'certificates.item5.year': '2023',
-      'certificates.item6.name': '项目管理（PMP 备考）',
-      'certificates.item6.issuer': '示例培训中心',
-      'certificates.item6.year': '2024'
-    },
-    en: {
-      'certificates.title': 'Certificates',
-      'certificates.subtitle': 'Professional credentials & honors (placeholder)',
-      'certificates.issuedBy': 'Issued by',
-      'certificates.item1.name': 'Senior Frontend Engineer Certification',
-      'certificates.item1.issuer': 'Example Institute',
-      'certificates.item1.year': '2023',
-      'certificates.item2.name': 'Full-stack Bootcamp Honor',
-      'certificates.item2.issuer': 'Example Bootcamp',
-      'certificates.item2.year': '2022',
-      'certificates.item3.name': 'UI Design Fundamentals',
-      'certificates.item3.issuer': 'Example Design School',
-      'certificates.item3.year': '2021',
-      'certificates.item4.name': 'CET-6 English Proficiency',
-      'certificates.item4.issuer': 'National Exam Center',
-      'certificates.item4.year': '2020',
-      'certificates.item5.name': 'Cloud Engineer (Associate)',
-      'certificates.item5.issuer': 'Example Cloud Vendor',
-      'certificates.item5.year': '2023',
-      'certificates.item6.name': 'Project Management (PMP prep)',
-      'certificates.item6.issuer': 'Example Training Center',
-      'certificates.item6.year': '2024'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'kicker', label: { zh: '眉标', en: 'Kicker' }, type: 'text' },
+  { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
+  { key: 'subtitle', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
+  { key: 'items', label: { zh: '证书列表', en: 'Certificate items' }, type: 'list' },
+  { key: 'issuedBy', label: { zh: '颁发机构', en: 'Issued by' }, type: 'text' }
+])
 
-  /* ---------- 应届生版：四六级 / 普通话 / 专业证书 ---------- */
-  graduate: {
-    zh: {
-      'certificates.title': '证书认证',
-      'certificates.subtitle': '英语、普通话与专业证书（占位示例）',
-      'certificates.issuedBy': '颁发方',
-      'certificates.item1.name': '英语六级（CET-6）',
-      'certificates.item1.issuer': '教育部',
-      'certificates.item1.year': '2024',
-      'certificates.item2.name': '普通话水平测试 · 二级甲等',
-      'certificates.item2.issuer': '国家语委',
-      'certificates.item2.year': '2023',
-      'certificates.item3.name': '计算机等级考试 · 二级 C 语言',
-      'certificates.item3.issuer': '教育部考试中心',
-      'certificates.item3.year': '2023',
-      'certificates.item4.name': '前端开发微专业证书',
-      'certificates.item4.issuer': '示例在线学习平台',
-      'certificates.item4.year': '2024',
-      'certificates.item5.name': 'Vue 3 实战训练营',
-      'certificates.item5.issuer': '示例训练营',
-      'certificates.item5.year': '2023',
-      'certificates.item6.name': '计算机等级考试 · 二级 Office',
-      'certificates.item6.issuer': '教育部考试中心',
-      'certificates.item6.year': '2022'
-    },
-    en: {
-      'certificates.title': 'Certificates',
-      'certificates.subtitle': 'English, Mandarin & professional certifications (placeholder)',
-      'certificates.issuedBy': 'Issued by',
-      'certificates.item1.name': 'CET-6 English Proficiency',
-      'certificates.item1.issuer': 'Ministry of Education',
-      'certificates.item1.year': '2024',
-      'certificates.item2.name': 'Mandarin Proficiency · Level 2A',
-      'certificates.item2.issuer': 'State Language Commission',
-      'certificates.item2.year': '2023',
-      'certificates.item3.name': 'NCRE Level 2 · C Language',
-      'certificates.item3.issuer': 'Ministry of Education Exam Center',
-      'certificates.item3.year': '2023',
-      'certificates.item4.name': 'Frontend Micro-degree Certificate',
-      'certificates.item4.issuer': 'Example Online Platform',
-      'certificates.item4.year': '2024',
-      'certificates.item5.name': 'Vue 3 Bootcamp',
-      'certificates.item5.issuer': 'Example Bootcamp',
-      'certificates.item5.year': '2023',
-      'certificates.item6.name': 'NCRE Level 2 · Office',
-      'certificates.item6.issuer': 'Ministry of Education Exam Center',
-      'certificates.item6.year': '2022'
-    }
-  }
-}
-
-/* t('certificates.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（certificates 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `certificates.${key}`)
 
-const items = computed(() => [1, 2, 3, 4, 5, 6].map((i) => ({
-  name: t(`certificates.item${i}.name`),
-  issuer: t(`certificates.item${i}.issuer`),
-  year: t(`certificates.item${i}.year`)
-})))
+const items = computed(() => {
+  const list = T('items')
+  return Array.isArray(list) ? list : []
+})
 
 /* ---------- 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ---------- */
 const revealed = useModuleReveal(props.config.id)
@@ -144,16 +47,16 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
     :class="`cert--${variant}`"
   >
     <header class="module__head">
-      <span class="module__kicker">CERTIFICATES</span>
-      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }">
-        <TextReveal :anim="config.textAnim" :text="t('certificates.title')" :delay="0.05" />
+      <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
+      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('title')">
+        <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.05" />
       </h2>
-      <p class="module__subtitle">
-        <TextReveal :anim="config.textAnim" :text="t('certificates.subtitle')" :delay="0.25" />
+      <p class="module__subtitle" v-editable="ed('subtitle')">
+        <TextReveal :anim="config.textAnim" :text="T('subtitle')" :delay="0.25" />
       </p>
     </header>
 
-    <ul class="cert__grid">
+    <ul class="cert__grid" v-editable="ed('items')">
       <li v-for="(item, i) in items" :key="i" class="cert__item">
         <article class="glass cert__card">
           <span class="cert__medal" aria-hidden="true">
@@ -165,7 +68,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
           </span>
           <h3 class="cert__name">{{ item.name }}</h3>
           <p class="cert__issuer">
-            <span class="cert__issuer-label">{{ t('certificates.issuedBy') }}</span>
+            <span class="cert__issuer-label" v-editable="ed('issuedBy')">{{ T('issuedBy') }}</span>
             {{ item.issuer }}
           </p>
           <span class="cert__year">{{ item.year }}</span>

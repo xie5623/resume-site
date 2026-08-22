@@ -7,131 +7,49 @@
 import { computed, ref } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ---------- 按版本分区双语词典（键名按模块命名空间） ---------- */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'contact.title': '联系方式',
-      'contact.subtitle': '欢迎交流合作（占位示例）',
-      'contact.linksHead': '直达通道',
-      'contact.email': '邮箱',
-      'contact.wechat': '微信',
-      'contact.phone': '电话',
-      'contact.github': 'GitHub',
-      'contact.formHead': '给我留言',
-      'contact.formName': '姓名',
-      'contact.formNamePh': '请输入您的姓名',
-      'contact.formEmail': '邮箱',
-      'contact.formEmailPh': 'you@example.com',
-      'contact.formMessage': '留言内容',
-      'contact.formMessagePh': '简单介绍一下您的需求…',
-      'contact.formSubmit': '发送留言',
-      'contact.formHint': '表单为占位示例，点击不会真的提交。',
-      'contact.formDone': '已收到！(占位提示：演示环境未发送)',
-      'contact.value1': 'hello@example.com',
-      'contact.value2': 'YourWeChatID',
-      'contact.value3': '+86 138 0000 0000',
-      'contact.value4': 'github.com/yourname'
-    },
-    en: {
-      'contact.title': 'Contact',
-      'contact.subtitle': "Let's connect (placeholder)",
-      'contact.linksHead': 'Direct channels',
-      'contact.email': 'Email',
-      'contact.wechat': 'WeChat',
-      'contact.phone': 'Phone',
-      'contact.github': 'GitHub',
-      'contact.formHead': 'Send a message',
-      'contact.formName': 'Name',
-      'contact.formNamePh': 'Your name',
-      'contact.formEmail': 'Email',
-      'contact.formEmailPh': 'you@example.com',
-      'contact.formMessage': 'Message',
-      'contact.formMessagePh': 'Briefly describe what you need…',
-      'contact.formSubmit': 'Send message',
-      'contact.formHint': 'This form is a placeholder — nothing is submitted.',
-      'contact.formDone': 'Received! (placeholder: nothing was sent)',
-      'contact.value1': 'hello@example.com',
-      'contact.value2': 'YourWeChatID',
-      'contact.value3': '+86 138 0000 0000',
-      'contact.value4': 'github.com/yourname'
-    }
-  },
-
-  /* ---------- 应届生版：校招 / 实习语境 ---------- */
-  graduate: {
-    zh: {
-      'contact.title': '联系方式',
-      'contact.subtitle': '期待加入你的团队（占位示例）',
-      'contact.linksHead': '直达通道',
-      'contact.email': '邮箱',
-      'contact.wechat': '微信',
-      'contact.phone': '电话',
-      'contact.github': 'GitHub',
-      'contact.formHead': '给我留言',
-      'contact.formName': '姓名',
-      'contact.formNamePh': '请输入您的姓名',
-      'contact.formEmail': '邮箱',
-      'contact.formEmailPh': 'you@example.com',
-      'contact.formMessage': '留言内容',
-      'contact.formMessagePh': '简单介绍一下校招或实习机会…',
-      'contact.formSubmit': '发送留言',
-      'contact.formHint': '表单为占位示例，点击不会真的提交。',
-      'contact.formDone': '已收到！(占位提示：演示环境未发送)',
-      'contact.value1': 'hello@example.com',
-      'contact.value2': 'YourWeChatID',
-      'contact.value3': '+86 138 0000 0000',
-      'contact.value4': 'github.com/yourname'
-    },
-    en: {
-      'contact.title': 'Contact',
-      'contact.subtitle': "I'd love to join your team (placeholder)",
-      'contact.linksHead': 'Direct channels',
-      'contact.email': 'Email',
-      'contact.wechat': 'WeChat',
-      'contact.phone': 'Phone',
-      'contact.github': 'GitHub',
-      'contact.formHead': 'Send a message',
-      'contact.formName': 'Name',
-      'contact.formNamePh': 'Your name',
-      'contact.formEmail': 'Email',
-      'contact.formEmailPh': 'you@example.com',
-      'contact.formMessage': 'Message',
-      'contact.formMessagePh': 'Briefly describe the new-grad or intern opportunity…',
-      'contact.formSubmit': 'Send message',
-      'contact.formHint': 'This form is a placeholder — nothing is submitted.',
-      'contact.formDone': 'Received! (placeholder: nothing was sent)',
-      'contact.value1': 'hello@example.com',
-      'contact.value2': 'YourWeChatID',
-      'contact.value3': '+86 138 0000 0000',
-      'contact.value4': 'github.com/yourname'
-    }
-  }
-}
-
-/* t('contact.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
-const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
-
-const channels = computed(() => [
-  { icon: 'mail', label: t('contact.email'), value: t('contact.value1'), href: 'mailto:hello@example.com' },
-  { icon: 'chat', label: t('contact.wechat'), value: t('contact.value2'), href: '#' },
-  { icon: 'phone', label: t('contact.phone'), value: t('contact.value3'), href: '#' },
-  { icon: 'github', label: t('contact.github'), value: t('contact.value4'), href: 'https://github.com/' }
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'kicker', label: { zh: '眉标', en: 'Kicker' }, type: 'text' },
+  { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
+  { key: 'subtitle', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
+  { key: 'linksHead', label: { zh: '直达通道标题', en: 'Links heading' }, type: 'text' },
+  { key: 'email', label: { zh: '邮箱标签', en: 'Email label' }, type: 'text' },
+  { key: 'wechat', label: { zh: '微信标签', en: 'WeChat label' }, type: 'text' },
+  { key: 'phone', label: { zh: '电话标签', en: 'Phone label' }, type: 'text' },
+  { key: 'github', label: { zh: 'GitHub 标签', en: 'GitHub label' }, type: 'text' },
+  { key: 'values', label: { zh: '联系值列表', en: 'Contact values' }, type: 'list' },
+  { key: 'formHead', label: { zh: '表单标题', en: 'Form heading' }, type: 'text' },
+  { key: 'formName', label: { zh: '姓名字段', en: 'Name field' }, type: 'text' },
+  { key: 'formEmail', label: { zh: '邮箱字段', en: 'Email field' }, type: 'text' },
+  { key: 'formMessage', label: { zh: '留言字段', en: 'Message field' }, type: 'text' },
+  { key: 'formSubmit', label: { zh: '提交按钮', en: 'Submit button' }, type: 'text' },
+  { key: 'formDone', label: { zh: '提交成功提示', en: 'Done message' }, type: 'text' },
+  { key: 'formHint', label: { zh: '表单提示', en: 'Form hint' }, type: 'text' }
 ])
+
+/* ===================== 内容层（contact 命名空间，跟随模板+语言，可运行时编辑） ===================== */
+const { version } = useVersion()
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `contact.${key}`)
+
+const channels = computed(() => {
+  const values = Array.isArray(T('values')) ? T('values') : []
+  return [
+    { icon: 'mail', key: 'email', label: T('email'), value: values[0] ?? '', href: 'mailto:hello@example.com' },
+    { icon: 'chat', key: 'wechat', label: T('wechat'), value: values[1] ?? '', href: '#' },
+    { icon: 'phone', key: 'phone', label: T('phone'), value: values[2] ?? '', href: '#' },
+    { icon: 'github', key: 'github', label: T('github'), value: values[3] ?? '', href: 'https://github.com/' }
+  ]
+})
 
 /* ---------- 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ---------- */
 const revealed = useModuleReveal(props.config.id)
@@ -151,19 +69,19 @@ function onSubmit() {
     :class="`contact--${variant}`"
   >
     <header class="module__head">
-      <span class="module__kicker">CONTACT</span>
-      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }">
-        <TextReveal :anim="config.textAnim" :text="t('contact.title')" :delay="0.05" />
+      <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
+      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('title')">
+        <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.05" />
       </h2>
-      <p class="module__subtitle">
-        <TextReveal :anim="config.textAnim" :text="t('contact.subtitle')" :delay="0.25" />
+      <p class="module__subtitle" v-editable="ed('subtitle')">
+        <TextReveal :anim="config.textAnim" :text="T('subtitle')" :delay="0.25" />
       </p>
     </header>
 
     <div class="contact__layout">
       <!-- 直达通道 -->
       <div class="contact__channels">
-        <h3 class="contact__subhead">{{ t('contact.linksHead') }}</h3>
+        <h3 class="contact__subhead" v-editable="ed('linksHead')">{{ T('linksHead') }}</h3>
         <div class="contact__link-grid">
           <a
             v-for="(ch, i) in channels"
@@ -195,8 +113,8 @@ function onSubmit() {
               </svg>
             </span>
             <span class="contact__link-text">
-              <span class="contact__label">{{ ch.label }}</span>
-              <span class="contact__value">{{ ch.value }}</span>
+              <span class="contact__label" v-editable="ed(ch.key)">{{ ch.label }}</span>
+              <span class="contact__value" v-editable="ed('values')">{{ ch.value }}</span>
             </span>
           </a>
         </div>
@@ -204,28 +122,28 @@ function onSubmit() {
 
       <!-- 留言表单（占位，不提交） -->
       <div class="glass glass--strong contact__form-panel">
-        <h3 class="contact__subhead">{{ t('contact.formHead') }}</h3>
+        <h3 class="contact__subhead" v-editable="ed('formHead')">{{ T('formHead') }}</h3>
         <form class="contact__form" @submit.prevent="onSubmit">
           <label class="contact__field">
-            <span class="contact__field-label">{{ t('contact.formName') }}</span>
+            <span class="contact__field-label" v-editable="ed('formName')">{{ T('formName') }}</span>
             <input class="glass-input" type="text" name="name" autocomplete="name"
-                   :placeholder="t('contact.formNamePh')" />
+                   :placeholder="T('formNamePh')" />
           </label>
           <label class="contact__field">
-            <span class="contact__field-label">{{ t('contact.formEmail') }}</span>
+            <span class="contact__field-label" v-editable="ed('formEmail')">{{ T('formEmail') }}</span>
             <input class="glass-input" type="email" name="email" autocomplete="email"
-                   :placeholder="t('contact.formEmailPh')" />
+                   :placeholder="T('formEmailPh')" />
           </label>
           <label class="contact__field">
-            <span class="contact__field-label">{{ t('contact.formMessage') }}</span>
+            <span class="contact__field-label" v-editable="ed('formMessage')">{{ T('formMessage') }}</span>
             <textarea class="glass-input contact__textarea" name="message" rows="4"
-                      :placeholder="t('contact.formMessagePh')"></textarea>
+                      :placeholder="T('formMessagePh')"></textarea>
           </label>
-          <button class="glass-btn glass-btn--accent contact__submit" type="submit">
-            {{ t('contact.formSubmit') }}
+          <button class="glass-btn glass-btn--accent contact__submit" type="submit" v-editable="ed('formSubmit')">
+            {{ T('formSubmit') }}
           </button>
-          <p v-if="sent" class="contact__done" role="status">{{ t('contact.formDone') }}</p>
-          <p class="contact__hint">{{ t('contact.formHint') }}</p>
+          <p v-if="sent" class="contact__done" role="status" v-editable="ed('formDone')">{{ T('formDone') }}</p>
+          <p class="contact__hint" v-editable="ed('formHint')">{{ T('formHint') }}</p>
         </form>
       </div>
     </div>

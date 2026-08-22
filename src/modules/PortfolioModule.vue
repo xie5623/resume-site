@@ -7,108 +7,39 @@
 import { computed } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ---------- 按版本分区双语词典（键名按模块命名空间） ---------- */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'portfolio.title': '作品集',
-      'portfolio.subtitle': '代表性项目（占位示例 · 纯渐变占位图）',
-      'portfolio.view': '查看详情',
-      'portfolio.item1.title': '电商平台重构',
-      'portfolio.item1.tag': 'Web 应用',
-      'portfolio.item2.title': '数据可视化大屏',
-      'portfolio.item2.tag': '可视化',
-      'portfolio.item3.title': '移动端点餐小程序',
-      'portfolio.item3.tag': '小程序',
-      'portfolio.item4.title': '开源组件库',
-      'portfolio.item4.tag': '开源',
-      'portfolio.item5.title': '品牌官网',
-      'portfolio.item5.tag': '官网',
-      'portfolio.item6.title': '游戏化学习应用',
-      'portfolio.item6.tag': '游戏化'
-    },
-    en: {
-      'portfolio.title': 'Portfolio',
-      'portfolio.subtitle': 'Selected work (placeholder · CSS gradient covers)',
-      'portfolio.view': 'View project',
-      'portfolio.item1.title': 'E-commerce Platform Redesign',
-      'portfolio.item1.tag': 'Web App',
-      'portfolio.item2.title': 'Data Visualization Dashboard',
-      'portfolio.item2.tag': 'Visualization',
-      'portfolio.item3.title': 'Mobile Food-ordering Mini App',
-      'portfolio.item3.tag': 'Mini App',
-      'portfolio.item4.title': 'Open-source Component Library',
-      'portfolio.item4.tag': 'Open Source',
-      'portfolio.item5.title': 'Brand Website',
-      'portfolio.item5.tag': 'Website',
-      'portfolio.item6.title': 'Gamified Learning App',
-      'portfolio.item6.tag': 'Gamified'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'kicker', label: { zh: '眉标', en: 'Kicker' }, type: 'text' },
+  { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
+  { key: 'subtitle', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
+  { key: 'items', label: { zh: '作品列表', en: 'Portfolio items' }, type: 'list' },
+  { key: 'view', label: { zh: '查看链接', en: 'View' }, type: 'text' }
+])
 
-  /* ---------- 应届生版（graduate 版当前未渲染此模块，文案备用） ---------- */
-  graduate: {
-    zh: {
-      'portfolio.title': '作品集',
-      'portfolio.subtitle': '课程与个人作品（占位示例 · 纯渐变占位图）',
-      'portfolio.view': '查看详情',
-      'portfolio.item1.title': '课程设计：图书管理系统',
-      'portfolio.item1.tag': 'Web 应用',
-      'portfolio.item2.title': '毕业设计：校园平台',
-      'portfolio.item2.tag': '全栈',
-      'portfolio.item3.title': '个人简历网站',
-      'portfolio.item3.tag': '前端',
-      'portfolio.item4.title': '数据可视化练习',
-      'portfolio.item4.tag': '可视化',
-      'portfolio.item5.title': '团队项目作品',
-      'portfolio.item5.tag': '协作',
-      'portfolio.item6.title': '个人练习作品',
-      'portfolio.item6.tag': '前端'
-    },
-    en: {
-      'portfolio.title': 'Portfolio',
-      'portfolio.subtitle': 'Coursework & personal work (placeholder · CSS gradient covers)',
-      'portfolio.view': 'View project',
-      'portfolio.item1.title': 'Coursework: Library System',
-      'portfolio.item1.tag': 'Web App',
-      'portfolio.item2.title': 'Graduation: Campus Platform',
-      'portfolio.item2.tag': 'Full-stack',
-      'portfolio.item3.title': 'Personal Resume Site',
-      'portfolio.item3.tag': 'Frontend',
-      'portfolio.item4.title': 'Data Visualization',
-      'portfolio.item4.tag': 'Visualization',
-      'portfolio.item5.title': 'Team Project',
-      'portfolio.item5.tag': 'Team',
-      'portfolio.item6.title': 'Personal Practice',
-      'portfolio.item6.tag': 'Frontend'
-    }
-  }
-}
-
-/* t('portfolio.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（portfolio 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `portfolio.${key}`)
 
 /* 每个条目绑定一个渐变变体类（颜色全部取自 tokens） */
-const items = computed(() => [1, 2, 3, 4, 5, 6].map((i) => ({
-  title: t(`portfolio.item${i}.title`),
-  tag: t(`portfolio.item${i}.tag`),
-  cover: `pf-cover--${i}`,
-  num: String(i).padStart(2, '0')
-})))
+const items = computed(() => {
+  const list = T('items')
+  return (Array.isArray(list) ? list : []).map((it, i) => ({
+    title: it.title,
+    tag: it.tag,
+    cover: `pf-cover--${i + 1}`,
+    num: String(i + 1).padStart(2, '0')
+  }))
+})
 
 /* ---------- 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ---------- */
 const revealed = useModuleReveal(props.config.id)
@@ -122,16 +53,16 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
     :class="`pf--${variant}`"
   >
     <header class="module__head">
-      <span class="module__kicker">PORTFOLIO</span>
-      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }">
-        <TextReveal :anim="config.textAnim" :text="t('portfolio.title')" :delay="0.05" />
+      <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
+      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('title')">
+        <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.05" />
       </h2>
-      <p class="module__subtitle">
-        <TextReveal :anim="config.textAnim" :text="t('portfolio.subtitle')" :delay="0.25" />
+      <p class="module__subtitle" v-editable="ed('subtitle')">
+        <TextReveal :anim="config.textAnim" :text="T('subtitle')" :delay="0.25" />
       </p>
     </header>
 
-    <ul class="pf__grid">
+    <ul class="pf__grid" v-editable="ed('items')">
       <li v-for="(item, i) in items" :key="i" class="pf__item">
         <article class="glass pf__card" tabindex="0">
           <div class="pf__cover" :class="item.cover" aria-hidden="true">
@@ -143,7 +74,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
               <h3 class="pf__title">{{ item.title }}</h3>
               <span class="pf__tag">{{ item.tag }}</span>
             </div>
-            <span class="pf__link">{{ t('portfolio.view') }} →</span>
+            <span class="pf__link" v-editable="ed('view')">{{ T('view') }} →</span>
           </div>
         </article>
       </li>

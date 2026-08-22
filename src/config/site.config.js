@@ -1,19 +1,22 @@
 /* ============================================================
-   site.config.js — 站点配置（阶段二"用户改配置"的入口）
+   site.config.js — 模板层（TEMPLATE）配置
    ------------------------------------------------------------
-   这是整站的唯一配置源。阶段二将提供可视化界面让用户在这里
-   增删模块、切换动画、调整字号与强调，因此：
-     1. 字段命名要稳定（前端/后端/界面三方共用）
-     2. 每个字段都要有默认值（缺省也能跑）
-     3. 注释务必详细（用户会直接改这个文件）
+   三层分离中的【模板层】：决定"结构"——用哪些模块、什么顺序、
+   每个模块的动画/字号/强调/变体配置。不含具体文字内容
+   （文字在内容层 src/content/，外观在主题层 src/themes/）。
 
-   多版本机制（VERSIONS）：
-     - VERSIONS 是按版本组织的配置字典，每个版本是一份完整配置
-       （brand / lang / stickyNav / modules）。
-     - DEFAULT_VERSION = 'senior'（资深版）为默认版本，
+   - 换模板 = 换模块编排（同批组件可重排/精简/开关）
+   - 换主题/内容完全不影响这里
+   - 保留"版本(version)"术语作为模板的别名：useVersion() 切换的
+     就是模板；VERSIONS / TEMPLATES 指向同一份数据。
+
+   多模板机制（VERSIONS = TEMPLATES）：
+     - 每个模板 = { id, label, brand(兜底), lang, stickyNav, modules }。
+     - DEFAULT_VERSION = 'senior'（资深版）为默认模板，
        CONFIG 是它的向后兼容别名（老代码照常读 CONFIG.modules 等）。
-     - 应届生版（graduate）复用同一批模块组件，仅重排/精简 modules，
-       详细文案与实习措辞由 module-builder(T3) / i18n-dev(T2) 细化。
+     - 应届生版（graduate）复用同一批模块组件，仅重排/精简 modules。
+     - 运行时"增删/排序/开关模块"请走 src/composables/useTemplates.js
+       （响应式 store，控制台写它 → 页面实时变），不要直接改本文件。
    ============================================================ */
 
 /* 允许的模块 id（注册表校验用） */
@@ -187,11 +190,36 @@ export const VERSIONS = {
 
 /* ===================== 向后兼容别名 ===================== */
 /**
- * CONFIG 保留为「默认版本（资深版）」的别名。
+ * CONFIG 保留为「默认模板（资深版）」的别名。
  * 老代码 `CONFIG.modules` / `CONFIG.lang` / `CONFIG.stickyNav` 照常可用；
  * 注意 `CONFIG.brand` 现在是 { zh, en } 对象，取文案请用 getVersionBrand()。
  */
 export const CONFIG = VERSIONS[DEFAULT_VERSION]
+
+/* ===================== 模板层（TEMPLATE）别名 ===================== */
+/**
+ * TEMPLATES = VERSIONS：同一份数据，「模板」语义名。
+ * 版本(version) 与 模板(template) 是同义词——模板决定模块编排。
+ */
+export const TEMPLATES = VERSIONS
+
+/** 默认模板 id（= 默认版本） */
+export const DEFAULT_TEMPLATE = DEFAULT_VERSION
+
+/** 按模板 id 取模板配置；未知 id 回退默认模板（永不返回 undefined） */
+export function getTemplate(id) {
+  return TEMPLATES[id] ?? TEMPLATES[DEFAULT_TEMPLATE]
+}
+
+/** 所有模板（按 TEMPLATE_IDS 顺序），给模板切换器渲染用 */
+export function getTemplates() {
+  return VERSION_IDS.map((id) => TEMPLATES[id])
+}
+
+/** 返回某模板的全部模块配置（未过滤，含 disabled）；无参时默认模板 */
+export function getTemplateModules(templateId = DEFAULT_TEMPLATE) {
+  return getTemplate(templateId).modules
+}
 
 /* ===================== 派生帮助函数 ===================== */
 /** 按版本 id 取版本配置；未知 id 回退默认版本（永不返回 undefined） */

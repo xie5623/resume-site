@@ -9,130 +9,43 @@
  *  - b：左侧大标题 + 右侧快速信息卡（玻璃）
  *  - c：居中 + 底部数据条（占位统计）
  *
+ * 内容：从内容层 useContent() 读取（hero 命名空间），控制台可实时编辑。
  * Props 契约见 ARCHITECTURE.md：config / lang
  */
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
-import { getEnabledModules } from '@/config/site.config'
+import { useTemplates } from '@/composables/useTemplates'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ===================== i18n（按版本分区词典，键名按模块命名空间，对齐全局 i18n 键） ===================== */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'hero.eyebrow':   '个人简历',
-      'hero.name':      'YOUR NAME',
-      'hero.greeting':  '你好，我是',
-      'hero.tagline':   '用代码把想法变成精致的数字产品。',
-      'hero.cta.work':  '查看项目',
-      'hero.cta.contact': '联系我',
-      'hero.scroll':    '向下滚动',
-      'hero.badge':     '开放合作',
-      'hero.card.role': '当前角色',
-      'hero.card.loc':  '所在城市',
-      'hero.card.mail': '邮箱',
-      'hero.card.avail':'合作状态',
-      'hero.role.1':    '全栈工程师',
-      'hero.role.2':    '前端开发',
-      'hero.role.3':    'UI 动效爱好者',
-      'hero.role.4':    '开源贡献者',
-      'hero.stat.1':    '年经验',
-      'hero.stat.2':    '交付项目',
-      'hero.stat.3':    '技术栈',
-      'hero.placeholder.mail': 'you@example.com',
-      'hero.placeholder.city': '上海 · 中国'
-    },
-    en: {
-      'hero.eyebrow':   'PORTFOLIO',
-      'hero.name':      'YOUR NAME',
-      'hero.greeting':  "Hi, I'm",
-      'hero.tagline':   'Turning ideas into polished digital products with code.',
-      'hero.cta.work':  'View Work',
-      'hero.cta.contact': 'Contact',
-      'hero.scroll':    'Scroll down',
-      'hero.badge':     'Open to work',
-      'hero.card.role': 'Current role',
-      'hero.card.loc':  'Location',
-      'hero.card.mail': 'Email',
-      'hero.card.avail':'Availability',
-      'hero.role.1':    'Full-Stack Developer',
-      'hero.role.2':    'Front-End Engineer',
-      'hero.role.3':    'Motion & UI Enthusiast',
-      'hero.role.4':    'Open Source Contributor',
-      'hero.stat.1':    'Years Exp.',
-      'hero.stat.2':    'Projects',
-      'hero.stat.3':    'Skills',
-      'hero.placeholder.mail': 'you@example.com',
-      'hero.placeholder.city': 'Shanghai, CN'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'eyebrow', label: { zh: '眉标', en: 'Eyebrow' }, type: 'text' },
+  { key: 'greeting', label: { zh: '问候语', en: 'Greeting' }, type: 'text' },
+  { key: 'name', label: { zh: '姓名', en: 'Name' }, type: 'text' },
+  { key: 'roles', label: { zh: '头衔轮播', en: 'Roles' }, type: 'list' },
+  { key: 'tagline', label: { zh: '标语', en: 'Tagline' }, type: 'text' },
+  { key: 'ctaWork', label: { zh: '主按钮', en: 'Primary CTA' }, type: 'text' },
+  { key: 'ctaContact', label: { zh: '联系按钮', en: 'Contact CTA' }, type: 'text' },
+  { key: 'scroll', label: { zh: '滚动提示', en: 'Scroll hint' }, type: 'text' },
+  { key: 'badge', label: { zh: '在线徽章', en: 'Badge' }, type: 'text' },
+  { key: 'cardRole', label: { zh: '卡片·职位', en: 'Card role' }, type: 'text' },
+  { key: 'placeholderCity', label: { zh: '卡片·城市', en: 'Card city' }, type: 'text' },
+  { key: 'placeholderMail', label: { zh: '卡片·邮箱', en: 'Card email' }, type: 'text' },
+  { key: 'stats', label: { zh: '数据条', en: 'Stats' }, type: 'list' }
+])
 
-  /* ---------- 应届生版：本科学历/校招口吻 ---------- */
-  graduate: {
-    zh: {
-      'hero.eyebrow':   '应届生简历',
-      'hero.name':      'YOUR NAME',
-      'hero.greeting':  '你好，我是',
-      'hero.tagline':   '2025 届毕业生，期待把校园里的热情与学习能力带进团队，快速成长、踏实产出。',
-      'hero.cta.work':  '查看项目',
-      'hero.cta.contact': '联系我',
-      'hero.scroll':    '向下滚动',
-      'hero.badge':     '应届 · 求职中',
-      'hero.card.role': '当前角色',
-      'hero.card.loc':  '所在城市',
-      'hero.card.mail': '邮箱',
-      'hero.card.avail':'求职状态',
-      'hero.role.1':    '前端开发应届生',
-      'hero.role.2':    '前端开发',
-      'hero.role.3':    '编程爱好者',
-      'hero.role.4':    '学习型选手',
-      'hero.stat.1':    '校园项目',
-      'hero.stat.2':    '交付项目',
-      'hero.stat.3':    '技术栈',
-      'hero.placeholder.mail': 'you@example.com',
-      'hero.placeholder.city': '上海 · 中国'
-    },
-    en: {
-      'hero.eyebrow':   'NEW GRAD',
-      'hero.name':      'YOUR NAME',
-      'hero.greeting':  "Hi, I'm",
-      'hero.tagline':   'Class of 2025. Ready to bring campus enthusiasm and fast learning to your team — growing quickly and shipping steadily.',
-      'hero.cta.work':  'View Projects',
-      'hero.cta.contact': 'Contact',
-      'hero.scroll':    'Scroll down',
-      'hero.badge':     'Open to new-grad roles',
-      'hero.card.role': 'Current role',
-      'hero.card.loc':  'Location',
-      'hero.card.mail': 'Email',
-      'hero.card.avail':'Status',
-      'hero.role.1':    'Frontend Developer (New Grad)',
-      'hero.role.2':    'Front-End Developer',
-      'hero.role.3':    'Coding Enthusiast',
-      'hero.role.4':    'Fast Learner',
-      'hero.stat.1':    'Campus Projects',
-      'hero.stat.2':    'Projects',
-      'hero.stat.3':    'Skills',
-      'hero.placeholder.mail': 'you@example.com',
-      'hero.placeholder.city': 'Shanghai, CN'
-    }
-  }
-}
-
-/* t('hero.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（hero 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `hero.${key}`)
 
 /* ===================== 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ===================== */
 const revealed = useModuleReveal(props.config.id)
@@ -141,16 +54,16 @@ const revealed = useModuleReveal(props.config.id)
 const emphasizeClass = computed(() => (props.config.emphasize ? 'text-emphasize' : ''))
 
 /* ===================== 打字机标语（循环切换角色，:key 重触发 TextReveal） ===================== */
-const ROLES = [
-  'hero.role.1', 'hero.role.2', 'hero.role.3', 'hero.role.4'
-]
 const roleIdx = ref(0)
-const roleText = computed(() => t(ROLES[roleIdx.value]))
+const roleText = computed(() => {
+  const roles = T('roles')
+  return Array.isArray(roles) ? (roles[roleIdx.value] ?? '') : ''
+})
 let timer = null
 
 function scheduleRole() {
   timer = setTimeout(() => {
-    roleIdx.value = (roleIdx.value + 1) % ROLES.length
+    roleIdx.value = (roleIdx.value + 1) % (Array.isArray(T('roles')) ? T('roles').length : 1)
     scheduleRole()
   }, 2600)
 }
@@ -161,15 +74,14 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearTimeout(timer))
 
-/* ===================== 占位统计（variant c） ===================== */
-const STATS = [
-  { key: 'hero.stat.1', value: '5+' },
-  { key: 'hero.stat.2', value: '30+' },
-  { key: 'hero.stat.3', value: '12' }
-]
+/* ===================== 占位统计（variant c，来自内容层 stats） ===================== */
+const STATS = computed(() => {
+  const stats = T('stats')
+  return Array.isArray(stats) ? stats : []
+})
 
-/* ===================== 向下滚动目标（版本感知） ===================== */
-/* 资深版指向 #about；应届生版 hero 后是 education，指向 #education，避免指向不存在的模块 */
+/* ===================== 向下滚动目标（模板感知：读运行时模板编排） ===================== */
+const { enabledModules: getEnabledModules } = useTemplates()
 const scrollTarget = computed(() => {
   const mods = getEnabledModules(version.value)
   const idx = mods.findIndex((m) => m.id === 'hero')
@@ -193,21 +105,21 @@ const scrollTarget = computed(() => {
     <div class="container hm-hero__inner">
       <!-- 左 / 中主区 -->
       <div class="hm-hero__main">
-        <div class="hm-hero__eyebrow">
+        <div class="hm-hero__eyebrow" v-editable="ed('eyebrow')">
           <span class="hm-hero__eyebrow-dot"></span>
-          <TextReveal :anim="config.textAnim" :text="t('hero.eyebrow')" :delay="0.05" />
+          <TextReveal :anim="config.textAnim" :text="T('eyebrow')" :delay="0.05" />
         </div>
 
-        <p class="hm-hero__greeting">{{ t('hero.greeting') }}</p>
+        <p class="hm-hero__greeting" v-editable="ed('greeting')">{{ T('greeting') }}</p>
 
-        <h1 class="hm-hero__name" :class="emphasizeClass">
-          <TextReveal :anim="config.textAnim" :text="t('hero.name')" :delay="0.15" />
+        <h1 class="hm-hero__name" :class="emphasizeClass" v-editable="ed('name')">
+          <TextReveal :anim="config.textAnim" :text="T('name')" :delay="0.15" />
         </h1>
 
         <!-- 打字机标语：不重建组件（:key 重建会导致完整文本闪现再逐字，
              即首屏"抽搐屏闪"元凶之一）。TextReveal 内部已 watch text
              自动重新拆分播放，直接改 :text 即可平滑轮换。 -->
-        <p class="hm-hero__role" aria-live="polite">
+        <p class="hm-hero__role" aria-live="polite" v-editable="ed('roles')">
           <TextReveal
             :anim="config.textAnim"
             :text="roleText"
@@ -215,18 +127,18 @@ const scrollTarget = computed(() => {
           />
         </p>
 
-        <p class="hm-hero__tagline">{{ t('hero.tagline') }}</p>
+        <p class="hm-hero__tagline" v-editable="ed('tagline')">{{ T('tagline') }}</p>
 
         <div class="hm-hero__actions">
-          <a class="glass-btn glass-btn--accent" href="#projects">{{ t('hero.cta.work') }}</a>
-          <a class="glass-btn" href="#contact">{{ t('hero.cta.contact') }}</a>
+          <a class="glass-btn glass-btn--accent" href="#projects" v-editable="ed('ctaWork')">{{ T('ctaWork') }}</a>
+          <a class="glass-btn" href="#contact" v-editable="ed('ctaContact')">{{ T('ctaContact') }}</a>
         </div>
 
         <!-- variant c：底部数据条 -->
-        <div v-if="config.variant === 'c'" class="hm-hero__stats">
-          <div v-for="s in STATS" :key="s.key" class="hm-hero__stat glass">
+        <div v-if="config.variant === 'c'" class="hm-hero__stats" v-editable="ed('stats')">
+          <div v-for="s in STATS" :key="s.label" class="hm-hero__stat glass">
             <span class="hm-hero__stat-value">{{ s.value }}</span>
-            <span class="hm-hero__stat-label">{{ t(s.key) }}</span>
+            <span class="hm-hero__stat-label">{{ s.label }}</span>
           </div>
         </div>
       </div>
@@ -234,37 +146,37 @@ const scrollTarget = computed(() => {
       <!-- variant b：右侧快速信息卡 -->
       <aside v-if="config.variant === 'b'" class="hm-hero__card glass glass--glow">
         <div class="hm-hero__card-head">
-          <span class="hm-hero__badge">
-            <span class="hm-hero__badge-dot"></span>{{ t('hero.badge') }}
+          <span class="hm-hero__badge" v-editable="ed('badge')">
+            <span class="hm-hero__badge-dot"></span>{{ T('badge') }}
           </span>
         </div>
         <dl class="hm-hero__card-list">
           <div class="hm-hero__card-row">
-            <dt>{{ t('hero.card.role') }}</dt>
-            <dd>{{ t('hero.role.1') }}</dd>
+            <dt>{{ T('cardRole') }}</dt>
+            <dd v-editable="ed('roles')">{{ T('roles')[0] }}</dd>
           </div>
           <div class="hm-hero__card-row">
-            <dt>{{ t('hero.card.loc') }}</dt>
-            <dd>{{ t('hero.placeholder.city') }}</dd>
+            <dt>{{ T('cardLoc') }}</dt>
+            <dd v-editable="ed('placeholderCity')">{{ T('placeholderCity') }}</dd>
           </div>
           <div class="hm-hero__card-row">
-            <dt>{{ t('hero.card.mail') }}</dt>
-            <dd>{{ t('hero.placeholder.mail') }}</dd>
+            <dt>{{ T('cardMail') }}</dt>
+            <dd v-editable="ed('placeholderMail')">{{ T('placeholderMail') }}</dd>
           </div>
           <div class="hm-hero__card-row">
-            <dt>{{ t('hero.card.avail') }}</dt>
-            <dd class="hm-hero__avail">{{ t('hero.badge') }}</dd>
+            <dt>{{ T('cardAvail') }}</dt>
+            <dd class="hm-hero__avail" v-editable="ed('badge')">{{ T('badge') }}</dd>
           </div>
         </dl>
       </aside>
     </div>
 
     <!-- ======== 滚动指示器 ======== -->
-    <a class="hm-hero__scroll" :href="scrollTarget" :aria-label="t('hero.scroll')">
+    <a class="hm-hero__scroll" :href="scrollTarget" :aria-label="T('scroll')" v-editable="ed('scroll')">
       <span class="hm-hero__mouse">
         <span class="hm-hero__mouse-wheel"></span>
       </span>
-      <span class="hm-hero__scroll-text">{{ t('hero.scroll') }}</span>
+      <span class="hm-hero__scroll-text">{{ T('scroll') }}</span>
     </a>
   </section>
 </template>

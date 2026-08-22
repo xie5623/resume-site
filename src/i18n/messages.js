@@ -1,12 +1,19 @@
 /* ============================================================
-   messages.js — 中英双语占位文案（i18n 数据源，按版本命名空间）
+   messages.js — 内容层基础数据（CONTENT base）
    ------------------------------------------------------------
-   整站的唯一文案源。键名按模块命名空间组织：
+   三层分离中的【内容层】基础数据源，被 src/content/index.js
+   导入合并进 CONTENT（common + 尚未模块改造的命名空间）。
+   已做模块改造的命名空间（hero/skills/experience）以
+   src/content/<module>.js 的富内容为准（此处同名 namespace 会被覆盖）。
+   组件读取一律走 useContent()（src/content/useContent.js），
+   不要直接 import 本文件。
+
+   键名按模块命名空间组织：
      hero.* / about.* / skills.* / experience.* / projects.* /
      education.* / certificates.* / portfolio.* / contact.* /
      footer.* / common.*
-   结构按【版本】分两层（资深版 senior / 应届生版 graduate），
-   每个版本内再按语言分 zh / en 两套：
+   结构按【模板】分两层（资深版 senior / 应届生版 graduate），
+   每个模板内再按语言分 zh / en 两套：
      export const MESSAGES = {
        senior:   { zh: { ... }, en: { ... } },   // 资深版（默认）
        graduate: { zh: { ... }, en: { ... } }    // 应届生版
@@ -20,7 +27,7 @@
    值可以是字符串，也可以是数组（数组用于列表类占位，如
    skills.groups、experience.items、projects.items）。
    新增文案/新模块：在对应版本的 zh/en 里加键即可，组件调用方式
-   不用改。i18n/index.js 的 t(key) 会根据当前版本+语言自动取用。
+   不用改。i18n/index.js 的 t(key) 会根据当前模板+语言自动取用。
    ============================================================ */
 
 export const MESSAGES = {

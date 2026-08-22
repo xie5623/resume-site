@@ -106,6 +106,14 @@ ul, ol { list-style: none; }
 }
 * { scrollbar-width: thin; scrollbar-color: var(--accent-purple-soft) var(--bg-deep); }
 
+/* ---------- 翻页演示形态（deck） ----------
+   App 进入 deck 时给 <body> 加 .mode-deck：
+   - 锁定页面滚动（deck 为 fixed 全屏容器，切换/滚轮都在容器内处理）
+   - 站点背景铺满视口（.site 只有导航 + fixed 容器，若不撑满
+     min-height，背景渐变会只画在导航那一条上） */
+body.mode-deck { overflow: hidden; }
+body.mode-deck .site { min-height: 100vh; }
+
 /* ---------- 选择文本 ---------- */
 ::selection {
   background: var(--accent-purple-soft);
@@ -119,4 +127,109 @@ ul, ol { list-style: none; }
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------- 主题切换平滑过渡 ----------
+   useTheme().setTheme() 切换时给 <html> 加 .theme-switching：
+   先淡出（160ms）→ 换变量（隐藏态瞬间生效）→ 移除类淡入（300ms）。
+   相比只过渡 CSS 变量（自定义属性默认不参与 transition），
+   淡入淡出对任意主题对组合都平滑、无闪烁。 */
+#app {
+  transition:
+    opacity 0.3s var(--ease-out),
+    transform 0.3s var(--ease-out);
+}
+html.theme-switching #app {
+  opacity: 0;
+  transform: translateY(3px);
+}
+
+/* ============================================================
+   editor-v2 · 元素级编辑辅助（module-builder T3）
+   ------------------------------------------------------------
+   仅当 <body class="editing">（控制台展开 = 编辑态）时叠加生效：
+   - 模块 hover：虚线框 + 模块名角标（编辑辅助框，需求 9）
+   - 元素 hover：可编辑光标 + 原生 title 提示 + 虚线描边（需求 4）
+   - 元素选中：data-selected 高亮（配合 console-dev SelectionBox）
+   - 拖拽摆放：拖拽态视觉反馈 + 全局禁过渡（需求 5 防冲突）
+   样式只在编辑态/拖拽态叠加，不改变模块原有渲染结构。
+   ============================================================ */
+
+/* ---- 模块容器：编辑态可作绝对定位的 containing block ---- */
+body.editing .module-section { position: relative; }
+
+/* ---- 模块 hover：虚线框 ---- */
+body.editing .module-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  border: 1px dashed var(--glass-border-hover);
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+body.editing .module-section:hover::after {
+  opacity: 1;
+  border-color: var(--accent-cyan);
+}
+
+/* ---- 模块 hover：模块名角标（类似页面构建器） ---- */
+body.editing .module-section::before {
+  content: attr(data-module-label);
+  position: absolute;
+  top: -0.9em;
+  right: var(--space-4);
+  z-index: 40;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--on-accent);
+  background: var(--accent-gradient);
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+body.editing .module-section:hover::before {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- 可编辑元素：光标 + hover 虚线描边 ---- */
+body.editing [data-editable-key] { cursor: pointer; }
+body.editing [data-editable-key]:hover {
+  outline: 1px dashed var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ---- 元素级选中高亮（data-selected 由 v-editable 指令维护） ---- */
+body.editing [data-editable-key][data-selected='true'] {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  background: var(--accent-cyan-soft);
+}
+
+/* ---- 拖拽摆放：拖拽态样式 + 全局防冲突 ---- */
+.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.92;
+  box-shadow: var(--shadow-lg) !important;
+  outline: 2px solid var(--accent-purple) !important;
+  outline-offset: 1px;
+}
+/* 拖拽期间：禁止选中文本 + 关掉所有过渡，避免拖拽卡顿/抖动 */
+body[data-drag-active] {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing;
+}
+body[data-drag-active] .module-section * {
+  transition: none !important;
 }

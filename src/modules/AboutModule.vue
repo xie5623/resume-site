@@ -13,116 +13,37 @@
 import { computed } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ===================== i18n（按版本分区词典，键名按模块命名空间） ===================== */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'about.eyebrow':   '了解我',
-      'about.title':     '关于我',
-      'about.p1':        '这里是一段占位自我介绍。写清楚你是谁、做过什么、擅长什么，以及为什么值得被记住。两三句话足够，重点是真诚和具体。',
-      'about.p2':        '第二段可以补充你的工作理念、你喜欢的工具链，或者你在业余时间做的事情。保持简洁，让阅读体验始终轻盈。',
-      'about.p3':        '最后一段可以给出你的合作方式与期望：远程 / 全职 / 自由职业均可，随时欢迎交流。',
-      'about.card.title': '个人档案',
-      'about.age':       '年龄',
-      'about.city':      '城市',
-      'about.mail':      '邮箱',
-      'about.phone':     '电话',
-      'about.available': '求职状态',
-      'about.placeholder.age':   'XX',
-      'about.placeholder.city':  '上海 · 中国',
-      'about.placeholder.mail':  'you@example.com',
-      'about.placeholder.phone': '+86 138 0000 0000',
-      'about.placeholder.status':'正在寻找机会',
-      'about.stat.1':    '专注领域',
-      'about.stat.2':    '技术文章',
-      'about.stat.3':    '开源项目'
-    },
-    en: {
-      'about.eyebrow':   'ABOUT ME',
-      'about.title':     'About Me',
-      'about.p1':        'This is a placeholder intro. Describe who you are, what you have built, and what you are great at. A few honest, concrete sentences are enough.',
-      'about.p2':        'A second paragraph can cover your working philosophy, your favorite toolchain, or what you do in your spare time. Keep it short and light.',
-      'about.p3':        'Wrap up with how you like to collaborate: remote, full-time, or freelance — all welcome. Reach out anytime.',
-      'about.card.title':'Profile',
-      'about.age':       'Age',
-      'about.city':      'Location',
-      'about.mail':      'Email',
-      'about.phone':     'Phone',
-      'about.available': 'Status',
-      'about.placeholder.age':   'XX',
-      'about.placeholder.city':  'Shanghai, CN',
-      'about.placeholder.mail':  'you@example.com',
-      'about.placeholder.phone': '+86 138 0000 0000',
-      'about.placeholder.status':'Open to opportunities',
-      'about.stat.1':    'Focus',
-      'about.stat.2':    'Articles',
-      'about.stat.3':    'OSS Projects'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'eyebrow', label: { zh: '眉标', en: 'Eyebrow' }, type: 'text' },
+  { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
+  { key: 'p1', label: { zh: '正文一', en: 'Paragraph 1' }, type: 'text' },
+  { key: 'p2', label: { zh: '正文二', en: 'Paragraph 2' }, type: 'text' },
+  { key: 'p3', label: { zh: '正文三', en: 'Paragraph 3' }, type: 'text' },
+  { key: 'card.title', label: { zh: '卡片标题', en: 'Card title' }, type: 'text' },
+  { key: 'placeholder.age', label: { zh: '年龄', en: 'Age' }, type: 'text' },
+  { key: 'placeholder.city', label: { zh: '城市', en: 'City' }, type: 'text' },
+  { key: 'placeholder.mail', label: { zh: '邮箱', en: 'Email' }, type: 'text' },
+  { key: 'placeholder.phone', label: { zh: '电话', en: 'Phone' }, type: 'text' },
+  { key: 'placeholder.status', label: { zh: '状态', en: 'Status' }, type: 'text' },
+  { key: 'stat.1', label: { zh: '统计一', en: 'Stat 1' }, type: 'text' },
+  { key: 'stat.2', label: { zh: '统计二', en: 'Stat 2' }, type: 'text' },
+  { key: 'stat.3', label: { zh: '统计三', en: 'Stat 3' }, type: 'text' }
+])
 
-  /* ---------- 应届生版（graduate 版当前未渲染此模块，文案备用） ---------- */
-  graduate: {
-    zh: {
-      'about.eyebrow':   '关于我',
-      'about.title':     '关于我',
-      'about.p1':        '我是 2025 届本科应届生，主修计算机科学与技术。对前端开发充满热情，能快速学习新工具，注重把想法落地成可用的产品。',
-      'about.p2':        '在校期间通过课程设计、实习与个人项目积累实战经验，习惯用文档记录学习、用作品沉淀成长。',
-      'about.p3':        '期待一份校招或实习转正机会：前端 / 全栈方向均可，欢迎随时联系交流。',
-      'about.card.title':'个人档案',
-      'about.age':       '年龄',
-      'about.city':      '城市',
-      'about.mail':      '邮箱',
-      'about.phone':     '电话',
-      'about.available': '求职状态',
-      'about.placeholder.age':   'XX',
-      'about.placeholder.city':  '上海 · 中国',
-      'about.placeholder.mail':  'you@example.com',
-      'about.placeholder.phone': '+86 138 0000 0000',
-      'about.placeholder.status':'应届 · 求职中',
-      'about.stat.1':    '学习方向',
-      'about.stat.2':    '个人项目',
-      'about.stat.3':    '实习经历'
-    },
-    en: {
-      'about.eyebrow':   'ABOUT ME',
-      'about.title':     'About Me',
-      'about.p1':        "I'm a 2025 undergrad in Computer Science. Passionate about frontend development, quick to pick up new tools, and focused on shipping ideas into working products.",
-      'about.p2':        "Through coursework, internships, and personal projects, I've built hands-on experience — I document what I learn and let my work show my growth.",
-      'about.p3':        'Looking for a new-grad or intern-to-full-time role in frontend/full-stack. Reach out anytime.',
-      'about.card.title':'Profile',
-      'about.age':       'Age',
-      'about.city':      'Location',
-      'about.mail':      'Email',
-      'about.phone':     'Phone',
-      'about.available': 'Status',
-      'about.placeholder.age':   'XX',
-      'about.placeholder.city':  'Shanghai, CN',
-      'about.placeholder.mail':  'you@example.com',
-      'about.placeholder.phone': '+86 138 0000 0000',
-      'about.placeholder.status':'Open to new-grad roles',
-      'about.stat.1':    'Focus',
-      'about.stat.2':    'Projects',
-      'about.stat.3':    'Internships'
-    }
-  }
-}
-
-/* t('about.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（about 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `about.${key}`)
 
 /* ===================== 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ===================== */
 const revealed = useModuleReveal(props.config.id)
@@ -132,18 +53,18 @@ const emphasizeClass = computed(() => (props.config.emphasize ? 'text-emphasize'
 
 /* ===================== 占位信息卡数据 ===================== */
 const INFO_ROWS = [
-  { label: 'about.age',    value: 'about.placeholder.age' },
-  { label: 'about.city',   value: 'about.placeholder.city' },
-  { label: 'about.mail',   value: 'about.placeholder.mail' },
-  { label: 'about.phone',  value: 'about.placeholder.phone' },
-  { label: 'about.available', value: 'about.placeholder.status' }
+  { label: 'age', value: 'placeholder.age' },
+  { label: 'city', value: 'placeholder.city' },
+  { label: 'mail', value: 'placeholder.mail' },
+  { label: 'phone', value: 'placeholder.phone' },
+  { label: 'available', value: 'placeholder.status' }
 ]
 
 /* ===================== 统计条（variant b） ===================== */
 const STATS = [
-  { key: 'about.stat.1', value: '3' },
-  { key: 'about.stat.2', value: '20+' },
-  { key: 'about.stat.3', value: '8' }
+  { key: 'stat.1', value: '3' },
+  { key: 'stat.2', value: '20+' },
+  { key: 'stat.3', value: '8' }
 ]
 </script>
 
@@ -155,9 +76,9 @@ const STATS = [
     <div class="container">
       <!-- ======== 区块标题 ======== -->
       <header class="hm-about__head">
-        <span class="hm-about__eyebrow">{{ t('about.eyebrow') }}</span>
-        <h2 class="hm-about__title" :class="emphasizeClass">
-          <TextReveal :anim="config.textAnim" :text="t('about.title')" :delay="0.1" />
+        <span class="hm-about__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
+        <h2 class="hm-about__title" :class="emphasizeClass" v-editable="ed('title')">
+          <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-about__line"></span>
       </header>
@@ -166,8 +87,8 @@ const STATS = [
       <div v-if="config.variant === 'c'" class="hm-about__card-top">
         <dl class="hm-about__card glass glass--glow">
           <div v-for="row in INFO_ROWS" :key="row.label" class="hm-about__card-row">
-            <dt>{{ t(row.label) }}</dt>
-            <dd>{{ t(row.value) }}</dd>
+            <dt>{{ T(row.label) }}</dt>
+            <dd v-editable="ed(row.value)">{{ T(row.value) }}</dd>
           </div>
         </dl>
       </div>
@@ -175,18 +96,18 @@ const STATS = [
       <!-- ======== 正文 + 侧栏 ======== -->
       <div class="hm-about__body">
         <div class="hm-about__text">
-          <p>{{ t('about.p1') }}</p>
-          <p>{{ t('about.p2') }}</p>
-          <p>{{ t('about.p3') }}</p>
+          <p v-editable="ed('p1')">{{ T('p1') }}</p>
+          <p v-editable="ed('p2')">{{ T('p2') }}</p>
+          <p v-editable="ed('p3')">{{ T('p3') }}</p>
         </div>
 
         <!-- variant a：右侧信息卡 -->
         <aside v-if="config.variant === 'a'" class="hm-about__card glass glass--glow">
-          <h3 class="hm-about__card-title">{{ t('about.card.title') }}</h3>
+          <h3 class="hm-about__card-title" v-editable="ed('card.title')">{{ T('card.title') }}</h3>
           <dl>
             <div v-for="row in INFO_ROWS" :key="row.label" class="hm-about__card-row">
-              <dt>{{ t(row.label) }}</dt>
-              <dd>{{ t(row.value) }}</dd>
+              <dt>{{ T(row.label) }}</dt>
+              <dd v-editable="ed(row.value)">{{ T(row.value) }}</dd>
             </div>
           </dl>
         </aside>
@@ -195,7 +116,7 @@ const STATS = [
         <aside v-else-if="config.variant === 'b'" class="hm-about__side">
           <div v-for="s in STATS" :key="s.key" class="hm-about__stat glass">
             <span class="hm-about__stat-value">{{ s.value }}</span>
-            <span class="hm-about__stat-label">{{ t(s.key) }}</span>
+            <span class="hm-about__stat-label" v-editable="ed(s.key)">{{ T(s.key) }}</span>
           </div>
         </aside>
       </div>

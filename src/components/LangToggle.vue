@@ -61,14 +61,14 @@ const LANGS = [
   background: var(--glass-bg-hover);
 }
 .lang-toggle__btn--active {
-  color: #0a0e1a;
+  color: var(--on-accent);
   background: var(--accent-gradient);
   font-weight: 700;
   box-shadow: var(--shadow-glow);
 }
 .lang-toggle__btn--active:hover {
   filter: brightness(1.08);
-  color: #0a0e1a;
+  color: var(--on-accent);
 }
 
 /* 尊重减少动效：关闭过渡 */

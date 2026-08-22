@@ -7,60 +7,28 @@
  */
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ---------- 按版本分区双语词典（键名按模块命名空间；版权/制作信息两版共用） ---------- */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'footer.tagline': '用代码把想法变成现实（占位标语）',
-      'footer.rights': '保留所有权利',
-      'footer.madeWith': '使用 Vue 3 + GSAP 构建',
-      'footer.backToTop': '回到顶部',
-      'footer.name': '你的名字（占位）'
-    },
-    en: {
-      'footer.tagline': 'Turning ideas into code (placeholder)',
-      'footer.rights': 'All rights reserved',
-      'footer.madeWith': 'Built with Vue 3 + GSAP',
-      'footer.backToTop': 'Back to top',
-      'footer.name': 'Your Name (placeholder)'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'name', label: { zh: '品牌名', en: 'Brand name' }, type: 'text' },
+  { key: 'tagline', label: { zh: '标语', en: 'Tagline' }, type: 'text' },
+  { key: 'rights', label: { zh: '版权', en: 'Rights' }, type: 'text' },
+  { key: 'madeWith', label: { zh: '制作说明', en: 'Made with' }, type: 'text' },
+  { key: 'backToTop', label: { zh: '回到顶部', en: 'Back to top' }, type: 'text' }
+])
 
-  /* ---------- 应届生版：标语换成学习口吻，其余共用 ---------- */
-  graduate: {
-    zh: {
-      'footer.tagline': '保持好奇，持续学习（占位标语）',
-      'footer.rights': '保留所有权利',
-      'footer.madeWith': '使用 Vue 3 + GSAP 构建',
-      'footer.backToTop': '回到顶部',
-      'footer.name': '你的名字（占位）'
-    },
-    en: {
-      'footer.tagline': 'Stay curious, keep learning (placeholder)',
-      'footer.rights': 'All rights reserved',
-      'footer.madeWith': 'Built with Vue 3 + GSAP',
-      'footer.backToTop': 'Back to top',
-      'footer.name': 'Your Name (placeholder)'
-    }
-  }
-}
-
-/* t('footer.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（footer 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `footer.${key}`)
 
 const socials = [
   {
@@ -98,11 +66,11 @@ function backToTop() {
     <div class="footer__top">
       <!-- 品牌与标语 -->
       <div class="footer__brand">
-        <span class="footer__name" :class="{ 'text-emphasize': config.emphasize }">
-          <TextReveal :anim="config.textAnim" :text="t('footer.name')" :delay="0.05" />
+        <span class="footer__name" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('name')">
+          <TextReveal :anim="config.textAnim" :text="T('name')" :delay="0.05" />
         </span>
-        <p class="footer__tagline">
-          <TextReveal :anim="config.textAnim" :text="t('footer.tagline')" :delay="0.2" />
+        <p class="footer__tagline" v-editable="ed('tagline')">
+          <TextReveal :anim="config.textAnim" :text="T('tagline')" :delay="0.2" />
         </p>
       </div>
 
@@ -119,20 +87,20 @@ function backToTop() {
       </ul>
 
       <!-- 回到顶部 -->
-      <button class="glass-btn footer__top" type="button" @click="backToTop">
+      <button class="glass-btn footer__top" type="button" @click="backToTop" v-editable="ed('backToTop')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 19V5M5 12l7-7 7 7"></path>
         </svg>
-        {{ t('footer.backToTop') }}
+        {{ T('backToTop') }}
       </button>
     </div>
 
     <div class="footer__bottom">
-      <p class="footer__copy">
-        © {{ year }} {{ t('footer.name') }} · {{ t('footer.rights') }}
+      <p class="footer__copy" v-editable="ed('rights')">
+        © {{ year }} {{ T('name') }} · {{ T('rights') }}
       </p>
-      <p class="footer__made">{{ t('footer.madeWith') }}</p>
+      <p class="footer__made" v-editable="ed('madeWith')">{{ T('madeWith') }}</p>
     </div>
   </footer>
 </template>

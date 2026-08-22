@@ -1,66 +1,39 @@
 <script setup>
 /**
  * SkillsModule — 专业技能（id: skills）
- * 占位技能项 + 三种布局变体（config.variant 切换）：
+ * 三种布局变体（config.variant 切换）：
  *  - a：进度条列表（revealed 后宽度动画）
  *  - b：环形图网格（SVG stroke-dashoffset 动画）
  *  - c：标签云（按熟练度加权字号）
  *
+ * 内容：从内容层 useContent() 读取（skills 命名空间，含 items 数组），
+ * 控制台可实时编辑技能名/熟练度。
  * Props 契约见 ARCHITECTURE.md：config / lang
  */
 import { computed } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
+import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
+import { useEditableElement } from '@/composables/useEditableElement'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
 
-/* ===================== i18n（按版本分区词典，键名按模块命名空间） ===================== */
-const DICT = {
-  /* ---------- 资深版 ---------- */
-  senior: {
-    zh: {
-      'skills.eyebrow': '技术能力',
-      'skills.title':   '专业技能',
-      'skills.sub':     '占位技能清单，熟练度数值可随意替换。',
-      'skills.level':   '熟练度'
-    },
-    en: {
-      'skills.eyebrow': 'SKILLS',
-      'skills.title':   'Skills',
-      'skills.sub':     'Placeholder skill list; feel free to tweak the levels.',
-      'skills.level':   'Level'
-    }
-  },
+/* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
+const { ed } = useEditableElement(props.config.id, [
+  { key: 'eyebrow', label: { zh: '眉标', en: 'Eyebrow' }, type: 'text' },
+  { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
+  { key: 'sub', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
+  { key: 'items', label: { zh: '技能列表', en: 'Skill items' }, type: 'list' }
+])
 
-  /* ---------- 应届生版 ---------- */
-  graduate: {
-    zh: {
-      'skills.eyebrow': '技术能力',
-      'skills.title':   '专业技能',
-      'skills.sub':     '本科期间掌握的核心技术栈，仍在持续学习中。',
-      'skills.level':   '熟练度'
-    },
-    en: {
-      'skills.eyebrow': 'SKILLS',
-      'skills.title':   'Skills',
-      'skills.sub':     'Core stack learned during undergrad — still learning and growing.',
-      'skills.level':   'Level'
-    }
-  }
-}
-
-/* t('skills.*') 自动跟随版本：当前版本 → 资深版兜底 → key */
+/* ===================== 内容层（skills 命名空间，跟随模板+语言，可运行时编辑） ===================== */
 const { version } = useVersion()
-const t = (key) => (
-  DICT[version.value]?.[props.lang]?.[key]
-  ?? DICT.senior?.[props.lang]?.[key]
-  ?? DICT.senior?.zh?.[key]
-  ?? key
-)
+const { get } = useContent()
+const T = (key) => get(version.value, props.lang, `skills.${key}`)
 
 /* ===================== 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ===================== */
 const revealed = useModuleReveal(props.config.id)
@@ -68,38 +41,11 @@ const revealed = useModuleReveal(props.config.id)
 /* ===================== 强调（字号由 App 层 --fs-scale 统一注入） ===================== */
 const emphasizeClass = computed(() => (props.config.emphasize ? 'text-emphasize' : ''))
 
-/* ===================== 占位技能数据（按版本分区：资深版在职能手栈 / 应届生版基础+正在成长的栈） ===================== */
-const SKILLS_BY_VERSION = {
-  senior: [
-    { name: 'Vue.js',        level: 92 },
-    { name: 'TypeScript',    level: 88 },
-    { name: 'Node.js',       level: 84 },
-    { name: 'React',         level: 78 },
-    { name: 'CSS / SCSS',    level: 90 },
-    { name: 'Python',        level: 74 },
-    { name: 'GSAP Motion',    level: 82 },
-    { name: 'SQL / Database', level: 70 },
-    { name: 'Docker',        level: 66 },
-    { name: 'Figma / Design', level: 72 },
-    { name: 'Vite / Build',   level: 85 },
-    { name: 'Git / Workflow', level: 88 }
-  ],
-  graduate: [
-    { name: 'HTML / CSS',      level: 90 },
-    { name: 'JavaScript (ES6+)', level: 86 },
-    { name: 'Vue 3',           level: 85 },
-    { name: 'TypeScript',      level: 80 },
-    { name: 'Vite / Build',    level: 78 },
-    { name: 'Git / Workflow',  level: 82 },
-    { name: 'Node.js',         level: 75 },
-    { name: 'GSAP Motion',     level: 74 },
-    { name: 'Figma / Design',  level: 72 },
-    { name: 'Python',          level: 70 },
-    { name: 'React',           level: 68 },
-    { name: 'SQL / Database',  level: 65 }
-  ]
-}
-const SKILLS = computed(() => SKILLS_BY_VERSION[version.value] ?? SKILLS_BY_VERSION.senior)
+/* ===================== 技能数据（来自内容层 skills.items） ===================== */
+const SKILLS = computed(() => {
+  const items = T('items')
+  return Array.isArray(items) ? items : []
+})
 
 /* 环形图需要 SVG 圆的周长：r=34 → C=2πr≈213.6 */
 const RING_R = 34
@@ -126,16 +72,16 @@ function tagSize(level) {
     <div class="container">
       <!-- ======== 区块标题 ======== -->
       <header class="hm-skills__head">
-        <span class="hm-skills__eyebrow">{{ t('skills.eyebrow') }}</span>
-        <h2 class="hm-skills__title" :class="emphasizeClass">
-          <TextReveal :anim="config.textAnim" :text="t('skills.title')" :delay="0.1" />
+        <span class="hm-skills__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
+        <h2 class="hm-skills__title" :class="emphasizeClass" v-editable="ed('title')">
+          <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-skills__line"></span>
-        <p class="hm-skills__sub">{{ t('skills.sub') }}</p>
+        <p class="hm-skills__sub" v-editable="ed('sub')">{{ T('sub') }}</p>
       </header>
 
       <!-- ======== variant a：进度条 ======== -->
-      <ul v-if="config.variant === 'a'" class="hm-skills__bars">
+      <ul v-if="config.variant === 'a'" class="hm-skills__bars" v-editable="ed('items')">
         <li v-for="s in SKILLS" :key="s.name" class="hm-skills__bar glass">
           <div class="hm-skills__bar-top">
             <span class="hm-skills__bar-name">{{ s.name }}</span>
@@ -151,7 +97,7 @@ function tagSize(level) {
       </ul>
 
       <!-- ======== variant b：环形图 ======== -->
-      <ul v-else-if="config.variant === 'b'" class="hm-skills__rings">
+      <ul v-else-if="config.variant === 'b'" class="hm-skills__rings" v-editable="ed('items')">
         <li v-for="s in SKILLS" :key="s.name" class="hm-skills__ring glass">
           <svg class="hm-skills__ring-svg" viewBox="0 0 80 80" aria-hidden="true">
             <circle class="hm-skills__ring-track" cx="40" cy="40" :r="RING_R" />
@@ -169,7 +115,7 @@ function tagSize(level) {
       </ul>
 
       <!-- ======== variant c：标签云 ======== -->
-      <div v-else class="hm-skills__cloud glass">
+      <div v-else class="hm-skills__cloud glass" v-editable="ed('items')">
         <span
           v-for="s in SKILLS"
           :key="s.name"
@@ -224,7 +170,7 @@ function tagSize(level) {
 .hm-skills__bar-track {
   height: 8px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--track-bg);
   overflow: hidden;
 }
 .hm-skills__bar-fill {
@@ -255,7 +201,7 @@ function tagSize(level) {
 }
 .hm-skills__ring-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: var(--track-bg);
   stroke-width: 6;
 }
 .hm-skills__ring-progress {
