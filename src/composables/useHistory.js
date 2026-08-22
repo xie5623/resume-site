@@ -6,6 +6,8 @@
    （含位置，位置即 useLayout 的状态）。
    - 快照 = 三层当前完整状态的一次深拷贝：
        { content, templates, layout }
+     （DEVICE 维度已包含：content/templates 的快照含 desktop/mobile 分支，
+       撤销/重做天然覆盖设备维度。）
    - 每次可撤销写操作：执行前捕获快照，执行成功后入栈
      （undo 即回到执行前状态）；新操作会清空 redo 栈。
    - 栈深上限 MAX_HISTORY = 50（超出丢弃最旧）。
@@ -29,14 +31,18 @@
      historySetElementPos(moduleId, elementKey, pos, containerSize?)
      historyToggleLayout(moduleId, on)
      historyResetContent() / historyResetTemplateModules() / historyResetLayout()
+     historySetContentForDevice(tpl, device, lang, key, value) // 显式设备写内容
+     historyUpdateForDevice(versionId, device, fn)             // 显式设备改模板编排
+     historyResetDeviceContent(versionId)                      // 清空手机内容覆盖
      bindHistoryShortcuts() / unbindHistoryShortcuts()
    ============================================================ */
 
 import { ref, computed } from 'vue'
-import { content, setContent, resetContent, replaceContentState } from '@/content/useContent'
+import { content, setContent, resetContent, resetDeviceContent, replaceContentState } from '@/content/useContent'
 import {
   templates,
   updateModule,
+  updateForDevice,
   resetTemplateModules,
   replaceTemplatesState
 } from '@/composables/useTemplates'
@@ -155,6 +161,22 @@ export function historyResetContent() {
   withHistory(() => resetContent())
 }
 
+/**
+ * DEVICE 维度包装（device 维度已随快照自动覆盖——快照克隆了
+ * content/templates 的 device 分支；这些包装用于显式指定设备的事务）：
+ */
+export function historySetContentForDevice(templateId, device, lang, key, value) {
+  withHistory(() => setContent(templateId, device, lang, key, value))
+}
+
+export function historyUpdateForDevice(versionId, device, fn) {
+  withHistory(() => updateForDevice(versionId, device, fn))
+}
+
+export function historyResetDeviceContent(versionId) {
+  withHistory(() => resetDeviceContent(versionId))
+}
+
 export function historyResetTemplateModules() {
   withHistory(() => resetTemplateModules())
 }
@@ -212,6 +234,9 @@ export function useHistory() {
     historySetElementPos,
     historyToggleLayout,
     historyResetContent,
+    historySetContentForDevice,
+    historyUpdateForDevice,
+    historyResetDeviceContent,
     historyResetTemplateModules,
     historyResetLayout,
     bindHistoryShortcuts,

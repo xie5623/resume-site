@@ -27,6 +27,7 @@ import { getModuleComponent } from '@/modules'
 import { isLayoutEnabled } from '@/composables/useLayout'
 import { useSelection } from '@/composables/useSelection'
 import { editing } from '@/composables/useEditingMode'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   module: { type: Object, required: true },
@@ -36,6 +37,9 @@ const props = defineProps({
   revealMode: { type: String, default: 'scroll' },
   active: { type: Boolean, default: false }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：模块容器跟随有效设备 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ---------- 编辑器：模块显示名（hover 角标用，跟随语言） ---------- */
 const moduleLabel = computed(() =>
@@ -102,10 +106,14 @@ onBeforeUnmount(() => unregisterModuleReveal(props.module.id))
     ref="sectionRef"
     :id="module.id"
     class="module-section"
-    :class="{
-      'module-section--deck': revealMode === 'deck',
-      'module-section--layout': layoutOn
-    }"
+    :class="[
+      deviceCls,
+      {
+        'module-section--deck': revealMode === 'deck',
+        'module-section--layout': layoutOn
+      }
+    ]"
+    :data-device="deviceCls"
     :data-module="module.id"
     :data-module-label="moduleLabel"
     :data-reveal-mode="revealMode"
@@ -113,7 +121,7 @@ onBeforeUnmount(() => unregisterModuleReveal(props.module.id))
     @click="onSectionClick"
   >
     <component
-      :is="getModuleComponent(module.id)"
+      :is="getModuleComponent(module)"
       :config="module"
       :lang="lang"
     />
@@ -132,5 +140,9 @@ onBeforeUnmount(() => unregisterModuleReveal(props.module.id))
 /* 拖拽摆放开启：本模块作为元素绝对定位的 containing block */
 .module-section--layout {
   position: relative;
+}
+/* 手机端（DEVICE 维度）：收紧模块间距，长页更紧凑 */
+.module-section.is-mobile {
+  margin-bottom: var(--space-8);
 }
 </style>

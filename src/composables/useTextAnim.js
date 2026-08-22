@@ -144,18 +144,10 @@ function resetInline(el) {
 
 /* --------------------- 各预设实现 --------------------- */
 
-/** typewriter：逐字出现 + 闪烁光标 */
+/** typewriter：逐字出现 + 闪烁光标（caret 传 null/'' 表示无光标，适合静态标题） */
 function runTypewriter(el, { delay, duration, caret }) {
   const chars = splitChars(el)
   gsap.set(chars, { opacity: 0 })
-
-  const caretEl = document.createElement('span')
-  caretEl.textContent = caret
-  caretEl.setAttribute('data-tr-caret', '')
-  caretEl.style.display = 'inline-block'
-  caretEl.style.marginLeft = '2px'
-  caretEl.style.color = 'var(--accent-cyan)'
-  el.appendChild(caretEl)
 
   const perChar = duration && chars.length ? duration / Math.max(chars.length, 1) : 0.06
   const tl = gsap.timeline({ delay })
@@ -166,8 +158,19 @@ function runTypewriter(el, { delay, duration, caret }) {
     ease: 'none',
     stagger: perChar
   }, 0)
-  /* 光标常亮闪烁 */
-  tl.to(caretEl, { opacity: 0.15, duration: 0.45, repeat: -1, yoyo: true }, 0)
+
+  /* 光标：caret 存在时才加（静态标题无声的闪烁光标） */
+  if (caret) {
+    const caretEl = document.createElement('span')
+    caretEl.textContent = caret
+    caretEl.setAttribute('data-tr-caret', '')
+    caretEl.style.display = 'inline-block'
+    caretEl.style.marginLeft = '2px'
+    caretEl.style.color = 'var(--accent-cyan)'
+    el.appendChild(caretEl)
+    /* 光标常亮闪烁 */
+    tl.to(caretEl, { opacity: 0.15, duration: 0.45, repeat: -1, yoyo: true }, 0)
+  }
   return tl
 }
 
@@ -316,7 +319,9 @@ export function useTextAnim(elOrRef, animName, options = {}) {
     const tl = runner(el, {
       delay: options.delay ?? 0,
       duration: options.duration,
-      caret: options.caret ?? DEFAULT_CARET
+      /* caret: 调用方可传 '' 或 false 关闭光标（静态标题用），
+         未传用默认光标字符（动态打字机行用）。 */
+      caret: (options.caret === '' || options.caret === false) ? undefined : (options.caret ?? DEFAULT_CARET)
     })
     tweens.push(tl)
     el.dataset.trState = 'split'

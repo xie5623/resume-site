@@ -16,11 +16,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -71,7 +75,7 @@ const STATS = [
 <template>
   <section
     class="hm-about"
-    :class="[`hm-about--${config.variant}`, { 'is-revealed': revealed }]"
+    :class="[deviceCls, `hm-about--${config.variant}`, { 'is-revealed': revealed }]"
   >
     <div class="container">
       <!-- ======== 区块标题 ======== -->
@@ -216,4 +220,14 @@ const STATS = [
 @media (max-width: 860px) {
   .hm-about__body { grid-template-columns: 1fr; }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.hm-about.is-mobile { padding: var(--space-6) 0; }
+.hm-about.is-mobile .hm-about__head { margin-bottom: var(--space-6); }
+.hm-about.is-mobile .hm-about__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-about.is-mobile .hm-about__body { grid-template-columns: 1fr; gap: var(--space-6); }
+.hm-about.is-mobile .hm-about__text p { margin-bottom: var(--space-4); }
+.hm-about.is-mobile .hm-about__card { padding: var(--space-5); }
+.hm-about.is-mobile .hm-about__side { grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.hm-about.is-mobile .hm-about__stat { padding: var(--space-4) var(--space-2); }
 </style>

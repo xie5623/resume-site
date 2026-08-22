@@ -2,19 +2,22 @@
 
 > 这是 **resume-gen-team** 的协作契约。所有成员在写/改代码前先读这里。
 > 技术栈：**Vue 3 (Composition API) + Vite + GSAP + Sass（可选）**
-> 数据模型：**三层分离 THEME / TEMPLATE / CONTENT**（生成器内核）
+> 数据模型：**三层分离 THEME / TEMPLATE / CONTENT** + **DEVICE 维度（第四层·叠加）**
+> 生成器内核 = 主题（外观）× 模板（结构）× 内容（文字），且桌面/手机可各自独立编排。
 
 ---
 
 ## 1. 三层架构总览（最重要）
 
-> 页面 = **主题（外观）× 模板（结构）× 内容（文字）**，三层解耦：
+> 页面 = **主题（外观）× 模板（结构）× 内容（文字）**，三层解耦；
+> DEVICE 维度在模板/内容之上叠加 desktop/mobile 双端变体（见 §12）。
 
 | 层 | 决定什么 | 数据在哪 | 全局状态 | 换它 |
 |----|----------|----------|----------|------|
 | **THEME 主题** | 外观：颜色/玻璃/字体 | `src/themes/index.js`（cssVars 覆盖 tokens） | `useTheme()` | 不动内容/模板 |
-| **TEMPLATE 模板** | 结构：模块选哪些/顺序/动画/字号配置 | `src/config/site.config.js`（VERSIONS=TEMPLATES） | `useVersion()` + `useTemplates()` | 不动内容/主题 |
+| **TEMPLATE 模板** | 结构：模块选哪些/顺序/动画/字号配置 | `src/config/site.config.js`（VERSIONS=TEMPLATES，含 mobile 编排） | `useVersion()` + `useTemplates()` | 不动内容/主题 |
 | **CONTENT 内容** | 文字：姓名/经历/技能/项目文案 | `src/content/`（CONTENT 数据）+ `src/i18n/messages.js`(base) | `useContent()` | 不动主题/模板 |
+| **DEVICE 设备**（第四层·叠加） | 桌面/手机两套模板编排 + 内容覆盖 | 模板：useTemplates `{desktop,mobile}`；内容：useContent desktop 基准 + mobile 补丁 | `useDevice()` | 不动主题/模板默认值/内容默认值 |
 
 **铁律：**
 - 换主题不动内容，换内容不动主题，模板决定模块编排。
@@ -56,7 +59,8 @@ resume-site/
     ├── animations/             # 动画系统统一出口（不动）
     ├── composables/
     │   ├── useVersion.js       #   版本状态（版本=模板）
-    │   ├── useTemplates.js     # ★ 模板运行时 store：增删/排序/开关/改模块
+    │   ├── useDevice.js        #   DEVICE 维度：当前设备 + 真实设备推断（见 §12）
+    │   ├── useTemplates.js     # ★ 模板运行时 store：增删/排序/开关/改模块（含 desktop/mobile 双端）
     │   ├── useReveal.js        #   入场动画（不动）
     │   ├── useTextAnim.js      #   文字动画（不动）
     │   ├── useMotion.js        #   动效降级（不动）
@@ -213,6 +217,7 @@ const T = (key) => get(version.value, props.lang, `hero.${key}`)  // 命名空�
 |------|------|------|-----------|
 | `useTheme()` | `themes/useTheme.js` | 当前主题 + 应用 | `resume-site.theme` |
 | `useVersion()` | `composables/useVersion.js` | 当前模板 id（版本=模板） | `resume-site.version` |
+| `useDevice()` | `composables/useDevice.js` | 当前设备（desktop/mobile，预览模拟） | `resume-site.device` |
 | `useTemplates()` | `composables/useTemplates.js` | 模板模块编排（运行时编辑） | `resume-site.templates` |
 | `useContent()` | `content/useContent.js` | 页面文字（运行时编辑） | `resume-site.content` |
 | `useI18n()` | `i18n/index.js` | 语言 + `t()` | `resume-site.lang` |
@@ -286,6 +291,8 @@ npm run build    # 产物 → dist/
 - [x] 编辑器地基：useHistory 撤销/重做 + useSelection 选中 + useLayout 位置 + useEditableRegistry 注册表（architect T1）
 - [ ] 滚动长页 ⇄ 翻页演示双形态切换（mode-dev）
 - [ ] 导出单文件 HTML
+- [x] DEVICE 维度：useDevice + 模板/内容双端拆分 + 内容同步策略（architect，见 §12）
+- [ ] DEVICE 维度 UI：桌面/手机视口切换 + 双端差异/覆盖展示（console/preview-dev）
 
 ---
 
@@ -391,3 +398,136 @@ getEditable(moduleId)               // [{ key, label:{zh,en}, type }] 响应式�
   setter；console-dev 切到历史包装即可让编辑可撤销。
 - App.vue / ModuleSection / 模块组件**无需改动**即可共存；高亮框 / 拖拽 overlay /
   左侧面板由后续任务接入。
+
+---
+
+## 12. DEVICE 维度（第四层）：桌面/手机双端 + 内容同步（architect）
+
+> 在 THEME/TEMPLATE/CONTENT 之上叠加「设备」维度：**桌面版 + 手机版两套专属模板**，
+> 内容桌面填完自动同步手机、手机可微调可大改；平板默认桌面。
+> 契约给 console-dev（设备切换 UI/双端差异展示）与 preview-dev（视口切换）照用。
+
+### 12.1 useDevice（`src/composables/useDevice.js`）
+
+```js
+import { useDevice } from '@/composables/useDevice'
+const { device, setDevice, clearDeviceOverride, isDesktop, isMobile,
+        inferDeviceFromWidth, effectiveDevice } = useDevice()
+
+setDevice('mobile') / setDevice('desktop')   // 编辑器切桌面/手机视口（模拟，持久化 resume-site.device）
+clearDeviceOverride()                        // 回到按真实视口自动推断
+inferDeviceFromWidth(720)                    // 真实设备规则：<768 → mobile；≥768 → desktop（含平板）
+effectiveDevice                              // computed：手动模拟优先，否则按真实视口推断
+```
+
+- **平板规则**：视口 ≥1024 桌面；768–1023 平板 → 默认桌面；<768 手机。
+  此规则用于「真实设备」推断（preview 自动选模板）；手动切换（编辑器模拟）优先。
+- 持久化键：`resume-site.device`。
+
+### 12.2 模板层双端拆分（`useTemplates.js` 扩展）
+
+每个模板的 `modules` 编排拆成 **desktop / mobile 两套**（模块/顺序/动画/字号完全独立）：
+
+```js
+templates.value = {
+  senior:   { desktop: [...], mobile: [...] },
+  graduate: { desktop: [...], mobile: [...] }
+}
+```
+
+- **旧数据兼容**：持久化里无 device 字段的模板（`{ modules: [...] }`）视为 desktop 编排
+  （保留用户已保存的桌面编辑）；**mobile 用该模板「设计好的手机编排」
+  （`VERSIONS[id].mobile`）**，不再跟随 desktop——让老用户升级后也直接拿到
+  手机版专属编排（module-builder T3 改进；缺省仍保底跟随 desktop）。
+- 静态默认：`site.config.js` 的 `VERSIONS[*].modules` = desktop，可选 `mobile` 数组 =
+  手机专属默认（缺省跟随 desktop）。常量 `DEVICE_IDS` / `DEFAULT_DEVICE`。
+
+```js
+const { enabledModules, getTemplateModules, updateForDevice, getDeviceModules } = useTemplates()
+enabledModules(version.value, device)      // 过滤+排序（device 可选，缺省=当前生效设备）
+getTemplateModules(version.value, device)  // 某设备全量模块（console 编辑用）
+updateForDevice('senior', 'mobile', (list) => list.push(cfg)) // 指定设备上下文事务修改
+getDeviceModules(version.value)            // { desktop:[...], mobile:[...] } 双端差异展示
+```
+
+- 增删/排序/开关/改模块全部带**可选 device 尾参**（缺省=当前生效设备）；App.vue 现有
+  `enabledModules(version.value)` 调用会自动跟随设备，无需改渲染代码即可双端预览。
+- 持久化键：`resume-site.templates`（含双端分支）。
+
+### 12.3 内容层双端（`useContent.js` 扩展）—— 同步策略（重点）
+
+```js
+content.value = {
+  senior: {
+    desktop: { zh: {...}, en: {...} },   // 桌面 = 基准（全量内容）
+    mobile:  { zh: {...补丁}, en: {...} } // 手机 = 覆盖补丁（仅被微调的字段）
+  }, ...
+}
+```
+
+**同步策略契约：**
+1. **desktop 为基准**：读取 mobile = 桌面全量 + 手机补丁（深度合并）。因此
+   **编辑 desktop 内容 → mobile 无覆盖的字段自动同步**（合并视图天然继承）。
+2. **编辑 mobile 内容 → 只写 mobile 覆盖补丁**（微调）；该字段手机端独立于桌面。
+3. **清空手机覆盖恢复跟随桌面**：`resetDeviceContent(versionId)`（不传清全部）。
+4. **数组覆盖**：手机补丁 `items.2.role` 只改第 3 条（按索引并入）；
+   整数组覆盖（`items = [...]`）整体替换桌面列表（手机可大改）。
+   ⚠️ 局限：按索引补丁在桌面增删列表项后可能错位——控制台提供「清空手机覆盖」兜底。
+
+**API（device 为可选参数，缺省=当前生效设备；旧 3/4 参调用完全兼容）：**
+
+```js
+const { get, setContent, hasDeviceOverride, deviceOverrideStats, resetDeviceContent } = useContent()
+get(version.value, device, lang, key)     // 新：显式设备（mobile 走合并视图）
+get(version.value, lang, key)             // 旧：跟随当前设备（模块现有写法无需改）
+setContent(version.value, device, lang, key, value)  // 新：显式设备写
+setContent(version.value, lang, key, value)          // 旧：跟随当前设备写
+hasDeviceOverride(version.value, lang, key)          // 该字段手机端是否已自定义
+deviceOverrideStats(version.value)        // { templateId, device:'mobile', paths:[...], count }
+resetDeviceContent(version.value)         // 清空手机覆盖 → 恢复跟随桌面
+```
+
+- **持久化键**：desktop 内容存原键 `resume-site.content`（旧数据形状兼容，向后不变）；
+  mobile 覆盖补丁存新键 `resume-site.content.mobile`。
+- `i18n.t()` 与模块的 `get(version, lang, key)` 在设备切换后自动跟随（内部读 useDevice）。
+
+### 12.4 与 useHistory / useSelection 兼容
+
+- `capture()` 快照深拷贝 content/templates（已含 desktop/mobile 分支）→
+  **撤销/重做天然覆盖 device 维度**；undo/redo 经 replaceContentState/replaceTemplatesState
+  恢复（两者都做形状规范化，旧形状快照也能恢复）。
+- 新增历史包装：`historySetContentForDevice(tpl, device, lang, key, value)`、
+  `historyUpdateForDevice(versionId, device, fn)`、`historyResetDeviceContent(versionId)`。
+- useSelection 为会话态选中，与 device 维度正交，无需改动。
+
+### 12.5 手机版专属编排 + 模块双端布局（module-builder T3）
+
+**① 手机版模板编排**（`site.config.js` 的 `VERSIONS[*].mobile`，运行时走 useTemplates）：
+- senior.mobile：精简掉 portfolio（移动端少滚动）；skills 用**标签云 variant c**（少占高度）、
+  experience 用**卡片列表 variant c**（比时间线紧凑）、hero `fontScale:0.92` 更紧凑；
+  动效全 fade-* 系、hero `textAnim:'none'`（轻量、省电）。
+- graduate.mobile：模块集与桌面一致，重动效（zoom-in/letter-*）换 fade-up，
+  hero 去文字动画 + fontScale 0.92，skills/experience 同样换 variant c。
+- 每套 mobile 的 variant/fontScale 与 desktop 完全独立（双端可不同布局）。
+
+**② 模块双端布局机制**（新增 `composables/useDeviceLayout.js`）：
+```js
+const { deviceCls } = useDeviceLayout()   // 'is-mobile' | 'is-desktop'（永远一个）
+```
+- 每个模块根元素挂 `deviceCls`，scoped 样式在 `.is-mobile { … }` 下写手机端专属布局。
+- 以 `useDevice().effectiveDevice` 为唯一事实来源：手动模拟优先，否则按真实视口
+  （<768 手机）。**为什么不用 @media 当唯一开关**：编辑器「手机视口」= setDevice 模拟
+  + 整体 scale，真实 window 宽度不变、@media 不会触发；用 effectiveDevice 派生的类
+  则真实视口与模拟都一致。真实手机 <768 时 effectiveDevice=mobile，行为与
+  @media(max-width:767px) 一致。
+- 手机端通用规则（10 模块全覆盖）：网格单列、字号下调、间距收紧、CTA/按钮全宽、
+  隐藏装饰（hero 光球减淡/隐藏、滚动指示器隐藏、projects 装饰图隐藏）。
+
+**③ 平板断点一致性**：`useDevice` 真实推断 `<768 mobile / ≥768 桌面（含平板）`，
+模块 `.is-mobile` 布局与之一致（768 桌面、767 手机，实测边界精确）；
+`tokens.css --bp-md:768px` 为唯一事实来源。
+
+**④ 生效设备路由**（T3 修正）：`useTemplates.resolveDevice` 与 `useContent.activeDeviceValue`
+的缺省设备由「手动 device」改为 **effectiveDevice**；App.vue 的
+`enabledModules(version, effectiveDevice)` 显式传设备。效果：**真实手机无需手动切换即
+自动渲染手机版模板 + 内容**；手动切换（console 设备切换器）优先。

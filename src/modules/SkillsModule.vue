@@ -16,11 +16,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -67,7 +71,7 @@ function tagSize(level) {
 <template>
   <section
     class="hm-skills"
-    :class="[`hm-skills--${config.variant}`, { 'is-revealed': revealed }]"
+    :class="[deviceCls, `hm-skills--${config.variant}`, { 'is-revealed': revealed }]"
   >
     <div class="container">
       <!-- ======== 区块标题 ======== -->
@@ -261,4 +265,18 @@ function tagSize(level) {
 @media (max-width: 640px) {
   .hm-skills__rings { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ====================
+   生效设备 = 手机：网格收紧、字号下调、间距压缩。
+   手机版编排 skills 用标签云 variant c（少占高度）。 */
+.hm-skills.is-mobile { padding: var(--space-6) 0; }
+.hm-skills.is-mobile .hm-skills__head { margin-bottom: var(--space-6); }
+.hm-skills.is-mobile .hm-skills__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-skills.is-mobile .hm-skills__bars { grid-template-columns: 1fr; gap: var(--space-3); }
+.hm-skills.is-mobile .hm-skills__bar { padding: var(--space-4); }
+.hm-skills.is-mobile .hm-skills__rings { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+.hm-skills.is-mobile .hm-skills__ring { padding: var(--space-4); }
+.hm-skills.is-mobile .hm-skills__ring-svg { width: 64px; height: 64px; }
+.hm-skills.is-mobile .hm-skills__cloud { padding: var(--space-5); gap: var(--space-2) var(--space-3); }
+.hm-skills.is-mobile .hm-skills__tag { padding: var(--space-1) var(--space-3); }
 </style>

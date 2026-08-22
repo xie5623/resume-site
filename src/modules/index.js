@@ -55,12 +55,16 @@ export const moduleRegistry = {
 }
 
 /**
- * 按 id 取组件；未注册的 id 回退到占位组件（容错）。
- * @param {string} id 模块 id
+ * 按模块配置/类型取组件；未注册的 id 回退到占位组件（容错）。
+ * @param {string|object} idOrCfg 模块 id，或模块配置对象（取 cfg.type ?? cfg.id）
  * @returns {object} 组件对象
+ * 副本实例（如 skills-2）的 type 指向基础类型（skills）→ 复用同一组件。
  */
-export function getModuleComponent(id) {
-  return moduleRegistry[id] ?? ModulePlaceholder
+export function getModuleComponent(idOrCfg) {
+  const key = (typeof idOrCfg === 'object' && idOrCfg)
+    ? (idOrCfg.type ?? idOrCfg.id)
+    : idOrCfg
+  return moduleRegistry[key] ?? ModulePlaceholder
 }
 
 /** 列出注册表里所有已注册的 id（调试用） */

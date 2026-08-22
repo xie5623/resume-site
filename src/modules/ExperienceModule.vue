@@ -17,11 +17,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -60,7 +64,7 @@ function badgeText(job) {
 <template>
   <section
     class="hm-exp"
-    :class="[`hm-exp--${config.variant}`, { 'is-revealed': revealed }]"
+    :class="[deviceCls, `hm-exp--${config.variant}`, { 'is-revealed': revealed }]"
   >
     <div class="container">
       <!-- ======== 区块标题 ======== -->
@@ -299,4 +303,21 @@ function badgeText(job) {
 
   .hm-exp__list-card { flex-direction: column; gap: var(--space-3); }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ====================
+   生效设备 = 手机：时间线退回单侧、间距收紧、字号下调。
+   手机版编排 experience 用卡片列表 variant c（比时间线紧凑）。 */
+.hm-exp.is-mobile { padding: var(--space-6) 0; }
+.hm-exp.is-mobile .hm-exp__head { margin-bottom: var(--space-6); }
+.hm-exp.is-mobile .hm-exp__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-exp.is-mobile .hm-exp__timeline::before { left: 14px; transform: none; }
+.hm-exp.is-mobile .hm-exp__item { grid-template-columns: 28px 1fr; gap: var(--space-3); }
+.hm-exp.is-mobile .hm-exp__node { left: 14px; top: 24px; width: 14px; height: 14px; }
+.hm-exp.is-mobile .hm-exp__card { grid-column: 2; padding: var(--space-4); }
+.hm-exp.is-mobile.hm-exp--b .hm-exp__item:nth-child(even) .hm-exp__card { grid-column: 2; grid-row: auto; }
+.hm-exp.is-mobile .hm-exp__list { gap: var(--space-3); }
+.hm-exp.is-mobile .hm-exp__list-card { flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.hm-exp.is-mobile .hm-exp__list-badge { min-width: 0; align-self: flex-start; }
+.hm-exp.is-mobile .hm-exp__role { font-size: calc(var(--fs-md) * var(--fs-scale)); }
+.hm-exp.is-mobile .hm-exp__desc { font-size: var(--fs-sm); }
 </style>

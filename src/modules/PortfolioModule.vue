@@ -10,11 +10,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -50,7 +54,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   <section
     class="pf container"
     :data-revealed="revealed ? 'yes' : 'no'"
-    :class="`pf--${variant}`"
+    :class="[deviceCls, `pf--${variant}`]"
   >
     <header class="module__head">
       <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
@@ -263,4 +267,14 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
     aspect-ratio: 16 / 10;
   }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.pf.is-mobile { padding: var(--space-6) 0; }
+.pf.is-mobile .module__head { margin-bottom: var(--space-6); }
+.pf.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.pf.is-mobile .pf__grid,
+.pf.is-mobile .pf--b .pf__grid { grid-template-columns: 1fr; gap: var(--space-4); }
+.pf.is-mobile .pf--a .pf__item:first-child { grid-column: auto; }
+.pf.is-mobile .pf__cover { aspect-ratio: 16 / 9; }
+.pf.is-mobile .pf__meta { padding: var(--space-3) var(--space-4); }
 </style>

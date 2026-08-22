@@ -15,11 +15,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -55,7 +59,7 @@ const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid-
 <template>
   <section
     class="hm-proj"
-    :class="[`hm-proj--${config.variant}`, { 'is-revealed': revealed }]"
+    :class="[deviceCls, `hm-proj--${config.variant}`, { 'is-revealed': revealed }]"
   >
     <div class="container">
       <!-- ======== 区块标题 ======== -->
@@ -281,4 +285,16 @@ const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid-
   .hm-proj__feature { grid-template-columns: 1fr; }
   .hm-proj__feature-art { display: none; }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.hm-proj.is-mobile { padding: var(--space-6) 0; }
+.hm-proj.is-mobile .hm-proj__head { margin-bottom: var(--space-6); }
+.hm-proj.is-mobile .hm-proj__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-proj.is-mobile .hm-proj__grid,
+.hm-proj.is-mobile .hm-proj__grid--3 { grid-template-columns: 1fr; gap: var(--space-3); }
+.hm-proj.is-mobile .hm-proj__card { padding: var(--space-5); }
+.hm-proj.is-mobile .hm-proj__feature { grid-template-columns: 1fr; padding: var(--space-6); gap: var(--space-4); }
+.hm-proj.is-mobile .hm-proj__feature-art { display: none; }
+.hm-proj.is-mobile .hm-proj__links { flex-wrap: wrap; }
+.hm-proj.is-mobile .hm-proj__links .glass-btn { flex: 1 1 130px; text-align: center; justify-content: center; }
 </style>

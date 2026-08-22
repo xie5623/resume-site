@@ -19,10 +19,12 @@ import { useVersion } from '@/composables/useVersion'
 import { useTemplates } from '@/composables/useTemplates'
 import { useTheme } from '@/themes/useTheme'
 import { useMode } from '@/composables/useMode'
+import { useDevice } from '@/composables/useDevice'
 import { resolveContent } from '@/content/useContent'
 import LangToggle from '@/components/LangToggle.vue'
 import VersionToggle from '@/components/VersionToggle.vue'
 import ModeToggle from '@/components/ModeToggle.vue'
+import DeviceToggle from '@/components/DeviceToggle.vue'
 import ThemePicker from '@/components/ThemePicker.vue'
 import ModuleSection from '@/components/ModuleSection.vue'
 import DeckContainer from '@/components/DeckContainer.vue'
@@ -32,6 +34,7 @@ import InlineEdit from '@/components/console/InlineEdit.vue'
 import { useSelection } from '@/composables/useSelection'
 import { useInlineEdit } from '@/composables/useInlineEdit'
 import { useEditingMode } from '@/composables/useEditingMode'
+import { useConsole } from '@/composables/useConsole'
 
 /* ---------- i18n：全局语言状态 + 翻译函数 ---------- */
 const { lang, t } = useI18n()
@@ -105,9 +108,12 @@ watch([lang, version], () => {
   document.title = brandText.value
 })
 
-/* ---------- 当前模板启用的模块：读运行时模板 store（支持控制台增删/排序/开关） ---------- */
+/* ---------- 当前模板启用的模块：读运行时模板 store（支持控制台增删/排序/开关） ----------
+   DEVICE 维度：按生效设备取对应分支（桌面/手机两套编排）。
+   effectiveDevice：手动模拟优先，否则按真实视口 <768 手机、≥768（含平板）桌面。 */
 const { enabledModules: getTemplateEnabled } = useTemplates()
-const enabledModules = computed(() => getTemplateEnabled(version.value))
+const { effectiveDevice, device } = useDevice()
+const enabledModules = computed(() => getTemplateEnabled(version.value, effectiveDevice.value))
 
 /* 模块标签文案（跟随当前语言） */
 function labelOf(m) {
@@ -131,9 +137,71 @@ const { selectModule: pickModuleOnPage, selectElement: pickElementOnPage, setSel
 const { startInlineEdit, inlineEdit, cancelInlineEdit } = useInlineEdit()
 const { editing } = useEditingMode()
 
-/* 控制台/导航/高亮框/内联编辑浮层内的点击不参与页面选中 */
+/* ============================================================
+   控制台展开 → 主界面整体等比缩小居中（需求 1 · 预览等比例缩放）
+   ------------------------------------------------------------
+   不是旧的「横向 margin-right 让位」：滚动形态下把 .site-nav /
+   .site-main 整体 transform: translateX(居中) scale(缩放)，缩小的
+   整页预览在面板左侧剩余空间居中显示，互不遮挡、能看到整页效果。
+   - 缩放系数 = 剩余宽度 / 布局宽度（跟随面板拉宽实时变化）
+   - 桌面视口：布局宽 = 视口宽 → 整页等比缩小
+   - 手机视口（DEVICE 维度）：布局宽 = 390px 手机框架 → 框架等比
+     缩放适配面板左侧空间（内容列 390px 宽、走手机模块编排）
+   - 翻页形态（deck）不整体缩放（fixed 满屏会随祖先 transform 错位），
+     沿用 .deck 的 right 收窄视口（等效让位，行为不变）
+   ============================================================ */
+const { open: consoleOpen, isMobile: consoleNarrow, panelWidth } = useConsole()
+
+/* 视口宽（resize 实时跟随） */
+const viewportW = ref(typeof window !== 'undefined' ? window.innerWidth : 1440)
+function onViewportResize() { viewportW.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', onViewportResize))
+onBeforeUnmount(() => window.removeEventListener('resize', onViewportResize))
+
+const PREVIEW_GAP = 28      /* 缩放预览与面板之间的呼吸间距 */
+const MOBILE_PREVIEW_W = 390 /* 手机视口模拟宽度 */
+const clampPreview = (v) => Math.min(1, Math.max(0.5, v))
+
+/** 是否激活等比缩放预览（面板展开 + 桌面宽窗口 + 滚动形态） */
+const previewActive = computed(() =>
+  consoleOpen.value && !consoleNarrow.value && mode.value === 'scroll'
+)
+
+/**
+ * 生成「先 scale（左上为原点）再 translateX 居中到面板左侧剩余空间」的 transform。
+ * 每个目标独立按自己的 layoutW 计算缩放（导航用视口宽、手机框架用 390px）。
+ */
+function centeredTransform(layoutW) {
+  if (!previewActive.value) return ''
+  const available = viewportW.value - panelWidth.value
+  const s = clampPreview((available - PREVIEW_GAP) / layoutW)
+  const tx = Math.round((available - layoutW * s) / 2)
+  if (Math.abs(tx) < 1 && s >= 1) return '' /* 无需缩放也无需平移 */
+  return `translate3d(${tx}px, 0, 0) scale(${s})`
+}
+
+/** 主界面（.site-main）缩放 + 手机时收窄为 390px 手机框架（居中到左区） */
+const mainStyle = computed(() => {
+  if (!previewActive.value) return {}
+  if (device.value === 'mobile') {
+    return { transform: centeredTransform(MOBILE_PREVIEW_W), width: `${MOBILE_PREVIEW_W}px` }
+  }
+  return { transform: centeredTransform(viewportW.value) }
+})
+/** 顶部导航跟随整体缩放（桌面公式：始终铺满左区，编辑器控件保持可读） */
+const navStyle = computed(() => ({
+  transform: centeredTransform(viewportW.value)
+}))
+
+/** 手机视口预览激活（编辑态 + 手机设备）→ 主界面套手机框架样式 */
+const deviceMobilePreview = computed(() =>
+  previewActive.value && device.value === 'mobile'
+)
+
+/* 控制台/配置浮窗/导航/高亮框/内联编辑浮层内的点击不参与页面选中 */
 function isEditorUi(t) {
   return !!(t.closest('.console-panel') || t.closest('.console-fab')
+    || t.closest('.config-bar') || t.closest('.config-bar-pill')
     || t.closest('.site-nav') || t.closest('.sel-box') || t.closest('.ie'))
 }
 
@@ -252,9 +320,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="site site-bg" :data-lang="currentLang" :data-theme="themeId">
+  <div
+    class="site site-bg"
+    :class="{
+      'side-panel-open': consoleOpen,
+      'preview-device-mobile': deviceMobilePreview
+    }"
+    :data-lang="currentLang"
+    :data-theme="themeId"
+    :data-device="effectiveDevice"
+  >
     <!-- ======== 顶部导航 ======== -->
-    <header class="site-nav glass--strong" :class="{ 'site-nav--sticky': currentVersionConfig.stickyNav }">
+    <header class="site-nav glass--strong" :class="{ 'site-nav--sticky': currentVersionConfig.stickyNav }" :style="navStyle">
       <div class="container site-nav__inner">
         <a class="site-nav__brand" href="#top" @click="onBrandClick">
           {{ brandText }}
@@ -280,6 +357,9 @@ onBeforeUnmount(() => {
 
         <!-- 形态切换（滚动长页 / 翻页演示） -->
         <ModeToggle class="site-nav__mode" />
+
+        <!-- 设备切换（桌面版 / 手机版视口模拟） -->
+        <DeviceToggle class="site-nav__device" />
 
         <!-- 主题切换（4 主题胶囊选择器） -->
         <ThemePicker class="site-nav__theme" />
@@ -315,6 +395,9 @@ onBeforeUnmount(() => {
         <!-- 移动端面板内形态切换（桌面导航窄屏隐藏后仍可切换） -->
         <ModeToggle class="site-nav__mobile-mode" />
 
+        <!-- 移动端面板内设备切换 -->
+        <DeviceToggle class="site-nav__mobile-device" />
+
         <!-- 移动端面板内主题切换（桌面导航窄屏隐藏后移到这里） -->
         <ThemePicker class="site-nav__mobile-theme" />
       </div>
@@ -325,6 +408,7 @@ onBeforeUnmount(() => {
       id="top"
       class="site-main"
       :class="{ 'site-main--fading': uiFading }"
+      :style="mainStyle"
     >
       <!-- 翻页演示形态：DeckContainer 每模块一屏，整屏切换（PPT 风格）。
            key 含版本：切换模板时重挂载，回到第一屏。 -->
@@ -393,6 +477,10 @@ onBeforeUnmount(() => {
   font-size: var(--fs-sm);
   color: var(--text-secondary);
   white-space: nowrap;
+  /* 侧边距让锚点有呼吸感，避免挤成一块 */
+  padding: 2px 0;
+  margin: 0 calc(var(--space-2) / 2);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 .site-nav__link:hover { color: var(--accent-cyan); }
 
@@ -404,6 +492,17 @@ onBeforeUnmount(() => {
 
 .site-nav__lang {
   flex-shrink: 0;
+}
+
+/* 控件组之间的视觉分隔：版本 | 语言 | 形态 | 设备 | 主题
+   用左侧淡分隔线而非大间距，顶栏更整洁有层次 */
+.site-nav__lang,
+.site-nav__mode,
+.site-nav__device,
+.site-nav__theme {
+  padding-left: var(--space-4);
+  margin-left: var(--space-2);
+  border-left: 1px solid var(--glass-border);
 }
 
 /* 版本切换器：占据右侧自由空间，语言切换器紧跟其后（顺序：品牌→链接→版本→语言） */
@@ -422,6 +521,15 @@ onBeforeUnmount(() => {
 }
 /* 移动端面板内形态切换（同主题切换器位置） */
 .site-nav__mobile-mode {
+  margin-top: var(--space-3);
+}
+
+/* 设备切换器（桌面/手机视口模拟）：紧跟形态切换器右侧 */
+.site-nav__device {
+  flex-shrink: 0;
+  margin-left: var(--space-2);
+}
+.site-nav__mobile-device {
   margin-top: var(--space-3);
 }
 
@@ -490,13 +598,54 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
   padding-bottom: var(--space-12);
-  /* 语言切换淡入淡出 */
-  transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+  /* 语言切换淡入淡出 + 控制台展开时右侧让位 */
+  transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out),
+    margin-right var(--dur-base) var(--ease-out);
 }
 .site-main--fading {
   opacity: 0;
   transform: translateY(4px);
 }
+
+/* ================= 控制台展开 → 主界面整体等比缩小居中（需求 1 · 预览等比例缩放） =================
+   说明：右侧编辑栏展开时给 .site 加 .side-panel-open。
+   滚动形态：.site-nav + .site-main 整体 transform 等比缩小并居中到面板左侧
+   剩余空间（transform 由 App.vue 按「面板宽 + 设备视口」实时计算），
+   不是旧的横向 margin-right 让位——缩小的整页预览完整可见、互不遮挡。
+   翻页形态：DeckContainer 是 fixed 满屏，不能整体缩放（fixed 会随祖先
+   transform 错位），沿用 .deck 的 right 收窄视口（等效让位）。 */
+.site-nav { transition: transform var(--dur-base) var(--ease-out); }
+.site.side-panel-open .site-nav,
+.site.side-panel-open .site-main {
+  transform-origin: top left;
+  will-change: transform;
+}
+/* 翻页形态：固定视口收窄（右侧留白 = 面板宽，跟随拉宽实时变） */
+.site.side-panel-open :deep(.deck) {
+  right: var(--console-panel-w, 460px);
+  transition: right var(--dur-base) var(--ease-out);
+}
+
+/* ================= 手机视口预览（需求 3）：主界面套手机框架 =================
+   编辑态 + device=mobile 时，.site-main 收窄为 390px 手机列（App 内联 width），
+   下面补一个手机框架质感（圆角边框 + 深底 + 阴影），导航同时收成手机样式
+   （隐藏桌面链接、显示汉堡；主题/形态切换进下拉面板）。 */
+.site.preview-device-mobile .site-main {
+  background: var(--bg-base);
+  border: 1px solid var(--glass-border);
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+.site.preview-device-mobile .site-nav__links { display: none; }
+.site.preview-device-mobile .site-nav__burger { display: inline-flex; flex: 0 0 auto; }
+.site.preview-device-mobile .site-nav__theme,
+.site.preview-device-mobile .site-nav__mode { display: none; }
+/* 手机预览时设备切换器/版本切换器收窄为图标，给 390px 导航腾空间 */
+.site.preview-device-mobile .site-nav__device :deep(.device-toggle__label) { display: none; }
+.site.preview-device-mobile .site-nav__device :deep(.device-toggle__btn) { min-width: 30px; padding: 2px 6px; }
+.site.preview-device-mobile .site-nav__inner { gap: 6px; }
+.site.preview-device-mobile .site-nav__brand { font-size: var(--fs-md); }
 
 /* ================= 响应式：窄屏（< 768px，对应 --bp-md） ================= */
 @media (max-width: 767px) {
@@ -505,8 +654,11 @@ onBeforeUnmount(() => {
   .site-nav__mobile { display: flex; }        /* 显示下拉面板 */
   .site-nav__theme { display: none; }         /* 桌面导航内主题切换器隐藏（面板里有带文字的） */
   .site-nav__mode { display: none; }          /* 桌面导航内形态切换器隐藏（面板里有） */
+  .site-nav__device { display: none; }        /* 桌面导航内设备切换器隐藏（下拉面板里有） */
   .site-nav__inner { gap: 6px; }              /* 移动端收紧间距，容纳 品牌+版本+语言+汉堡 不溢出 */
   .site-nav__brand { font-size: var(--fs-md); } /* 移动端收窄品牌字号，避免顶栏拥挤 */
   .site-main { padding-bottom: var(--space-8); }
+  /* 窄屏：右侧面板为全屏覆盖，主界面不做缩放/让位（预览等比缩放仅桌面宽屏启用） */
+  .site.side-panel-open :deep(.deck) { right: 0; }
 }
 </style>

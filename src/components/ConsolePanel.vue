@@ -1,14 +1,18 @@
 <script setup>
 /**
- * ConsolePanel — 嵌入式可收起控制台（左侧常驻面板 · 深色玻璃化）
+ * ConsolePanel — 嵌入式可收起控制台（右侧抽屉面板 · 深色玻璃化）
  * ------------------------------------------------------------
- * 固定在【左侧】的抽屉式玻璃面板，默认收起：
+ * 固定在【右侧】的抽屉式玻璃面板，默认收起：
  *   - 收起：只留一个浮动「编辑」按钮（右下角），主区占满全屏正常展示
- *   - 展开：面板自左滑入（~460px，不重排主区），进入编辑态（body.editing）
- *   - 窄屏（< 768px）：面板变全屏覆盖，可关闭
- * 布局（需求 2）：
- *   - 左列：ModuleRail 常驻模块树（增删/排序/开关 + 点选联动高亮）
- *   - 右列：选中模块/元素的完整配置区（文字 + 动画/字号/强调/变体）
+ *   - 展开：面板自右滑入（~460px），进入编辑态（body.editing）
+ *   - 主界面同步让位：App.vue 在控制台展开时给 .site 加
+ *     .side-panel-open（margin-right = 面板宽，互不遮挡）
+ *   - 窄屏（< 768px）：面板变全屏覆盖，可关闭（主界面不让位）
+ * 布局（需求 2 重排）：
+ *   - 面板内左列：ModuleRail 常驻模块树（增删/排序/开关 + 点选联动高亮）
+ *   - 面板内右列：选中模块的文字内容编辑（ContentField）
+ *   - 模块配置（动画/字号/强调/摆放/变体）已拆为独立可拖拽浮窗
+ *     ModuleConfigBar（挂载于本组件，z-index 低于面板）
  *   - 顶部 tab：编辑 / 主题 / 形态 / 全局（模块树已常驻，不单独占 tab）
  * 深色玻璃化（需求 1）：
  *   - 在 .console-panel/.console-fab 作用域定义固定深色调色板 --c-*，
@@ -16,12 +20,16 @@
  *     在子树内重映射为固定深色值 → 所有控制台子组件强制深色，不随页面主题变化。
  * 双向联动（需求 3）：读 useSelection，页面点选 → 这里同步选中模块。
  */
-import { watch } from 'vue'
-import { useConsole, setConsoleTab, consoleTab, consoleSelectedModuleId } from '@/composables/useConsole'
+import { watch, ref, onBeforeUnmount } from 'vue'
+import {
+  useConsole, setConsoleTab, consoleTab, consoleSelectedModuleId,
+  consolePanelWidth, setConsolePanelWidth, PANEL_W_MIN, PANEL_W_MAX
+} from '@/composables/useConsole'
 import { useI18n } from '@/i18n'
 import { useSelection } from '@/composables/useSelection'
 import ModuleRail from './console/ModuleRail.vue'
 import ModuleEditorTab from './console/ModuleEditorTab.vue'
+import ModuleConfigBar from './console/ModuleConfigBar.vue'
 import ThemeTab from './console/ThemeTab.vue'
 import ModeTab from './console/ModeTab.vue'
 import GlobalTab from './console/GlobalTab.vue'
@@ -30,10 +38,46 @@ const { open, activeTab, isMobile, toggleConsole, closeConsole } = useConsole()
 const { lang } = useI18n()
 const { selection } = useSelection()
 
-/* ---------- 页面点选 → 左侧联动（需求 3 反向） ----------
-   点页面元素（v-editable → selectElement）或模块 → 左侧树高亮 + 配置区跟随：
-   - 同步 consoleSelectedModuleId（配置区显示该模块）
-   - 若正在「模块/编辑」页则跳到该模块配置；主题/形态/全局不打扰 */
+/* ================= 面板拉宽：左缘拖拽 resize handle（需求 1） =================
+   拖左缘向左 → 面板变宽；实时更新 --console-panel-w（主界面让位/缩放跟随），
+   松手持久化 localStorage 'resume-site.console-w'（刷新保留）。
+   窄屏（全屏覆盖）不允许拉宽。 */
+const resizing = ref(false)
+let resizeState = null
+function onResizeStart(e) {
+  if (isMobile.value) return
+  if (e.button != null && e.button !== 0) return
+  if (e.target.closest('button, select, input, textarea, a')) return
+  resizing.value = true
+  resizeState = { x: e.clientX, w: consolePanelWidth.value }
+  e.preventDefault()
+  document.body.classList.add('resizing-panel')
+  window.addEventListener('pointermove', onResizeMove)
+  window.addEventListener('pointerup', onResizeEnd)
+}
+function onResizeMove(e) {
+  if (!resizeState) return
+  /* 左缘拖拽：指针左移（x 减小）→ 面板变宽 */
+  const next = resizeState.w + (resizeState.x - e.clientX)
+  setConsolePanelWidth(Math.min(PANEL_W_MAX, Math.max(PANEL_W_MIN, next)))
+}
+function onResizeEnd() {
+  resizing.value = false
+  resizeState = null
+  document.body.classList.remove('resizing-panel')
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
+}
+onBeforeUnmount(() => {
+  document.body.classList.remove('resizing-panel')
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
+})
+
+/* ---------- 页面点选 → 面板/配置浮窗联动（需求 3 反向） ----------
+   点页面元素（v-editable → selectElement）或模块 → 模块树高亮 + 配置跟随：
+   - 同步 consoleSelectedModuleId（配置浮窗显示该模块）
+   - 若正在「编辑」页则跳到该模块内容；主题/形态/全局不打扰 */
 watch(
   () => selection.value?.moduleId,
   (id) => {
@@ -61,6 +105,7 @@ const l = {
   panelTitle: { zh: '编辑面板', en: 'Edit Panel' },
   edit: { zh: '编辑', en: 'Edit' },
   close: { zh: '收起面板', en: 'Close panel' },
+  resize: { zh: '拖动调整面板宽度（320–720px）', en: 'Drag to resize panel (320–720px)' },
   hint: { zh: '编辑即所见 · 实时预览', en: 'Edit → live preview' }
 }
 </script>
@@ -80,7 +125,7 @@ const l = {
     </button>
   </Transition>
 
-  <!-- ======== 控制台面板（展开时 · 左侧抽屉） ======== -->
+  <!-- ======== 控制台面板（展开时 · 右侧抽屉） ======== -->
   <Transition name="console">
     <aside
       v-if="open"
@@ -88,6 +133,17 @@ const l = {
       :class="{ 'console-panel--mobile': isMobile }"
       aria-label="编辑面板"
     >
+      <!-- 左缘拉宽把手（桌面端）：拖拽改变面板宽度 320–720px -->
+      <div
+        class="console-panel__resize"
+        :class="{ 'console-panel__resize--active': resizing }"
+        :title="l.resize[lang]"
+        :aria-label="l.resize[lang]"
+        role="separator"
+        aria-orientation="vertical"
+        @pointerdown="onResizeStart"
+      ></div>
+
       <!-- 头部：标题 + 收起 -->
       <header class="console-panel__head">
         <div class="console-panel__title-wrap">
@@ -132,6 +188,9 @@ const l = {
       </div>
     </aside>
   </Transition>
+
+  <!-- ======== 模块配置独立可拖拽浮窗（编辑态显示，跟随选中模块） ======== -->
+  <ModuleConfigBar />
 </template>
 
 <style scoped>
@@ -213,14 +272,47 @@ const l = {
 .console-fab__icon { font-size: var(--fs-md); line-height: 1; }
 .console-fab__text { font-weight: 700; }
 
-/* ================= 面板骨架（左侧抽屉） ================= */
+/* ================= 左缘拉宽把手（需求 1） ================= */
+.console-panel__resize {
+  position: absolute;
+  top: 0;
+  left: -6px;                 /* 悬在面板左缘外侧，便于抓取 */
+  width: 12px;
+  height: 100%;
+  z-index: 3;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+.console-panel__resize::before {
+  content: '';
+  width: 3px;
+  height: 60px;
+  border-radius: var(--radius-pill);
+  background: var(--c-border);
+  opacity: 0.7;
+  transition: background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out), height var(--dur-fast) var(--ease-out);
+}
+.console-panel__resize:hover::before,
+.console-panel__resize--active::before {
+  height: 88px;
+  background: var(--c-accent);
+  box-shadow: var(--c-glow);
+}
+/* 窄屏：全屏覆盖不可拉宽 */
+.console-panel--mobile .console-panel__resize { display: none; }
+
+/* ================= 面板骨架（右侧抽屉，主界面同步让位） ================= */
 .console-panel {
   position: fixed;
   top: 0;
-  left: 0;
+  right: 0;
   bottom: 0;
   z-index: 1100;
-  width: 460px;
+  width: var(--console-panel-w, 460px);
   max-width: 96vw;
   display: flex;
   flex-direction: column;
@@ -228,15 +320,16 @@ const l = {
   background: var(--c-bg);
   backdrop-filter: blur(var(--blur-lg)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(150%);
-  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-  border-right: 1px solid var(--c-border);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  border-left: 1px solid var(--c-border);
   box-shadow: var(--shadow-lg);
 }
-/* 窄屏：全屏覆盖（自左滑入，无圆角） */
+/* 窄屏：全屏覆盖（自右滑入，无圆角） */
 .console-panel--mobile {
   width: 100%;
   max-width: 100vw;
   border-radius: 0;
+  border-left: none;
 }
 
 .console-panel__head {
@@ -311,7 +404,7 @@ const l = {
 .console-tabs__icon { font-size: var(--fs-base); line-height: 1; }
 .console-tabs__name { line-height: 1.2; }
 
-/* ================= 内容区：左常驻模块树 + 右配置区 ================= */
+/* ================= 内容区：左模块树 + 右文字编辑 ================= */
 .console-panel__split {
   flex: 1;
   min-height: 0;
@@ -370,14 +463,14 @@ const l = {
 }
 
 /* ================= 过渡 ================= */
-/* 面板：自左滑入 + 淡入 */
+/* 面板：自右滑入 + 淡入 */
 .console-enter-active,
 .console-leave-active {
   transition: transform 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
 }
 .console-enter-from,
 .console-leave-to {
-  transform: translateX(-100%);
+  transform: translateX(100%);
   opacity: 0;
 }
 

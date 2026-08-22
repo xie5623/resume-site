@@ -27,6 +27,7 @@ const {
   moveModule,
   removeModule,
   addModule,
+  createModuleInstance,
   resetTemplateModules
 } = useTemplates()
 const { selection, selectModule: selectInSelection, clearSelection } = useSelection()
@@ -80,16 +81,39 @@ function labelOf(m) {
   return m.label?.[lang.value] ?? m.label?.zh ?? m.id
 }
 
-/* ---------- 可用模块池（未在当前模板中的 id） ---------- */
+/* ================= 模块树展开/收回（需求 1）：默认收回只显示缩写，可展开显示全名 =================
+   默认收回态（行窄，只显示图标/缩写），点「▸/▾」展开；状态持久化
+   localStorage 'resume-site.rail-expand'。 */
+const railExpand = ref(
+  (typeof localStorage !== 'undefined' ? localStorage.getItem('resume-site.rail-expand') : null) === '1'
+)
+watch(railExpand, (v) => {
+  try {
+    typeof localStorage !== 'undefined' && localStorage.setItem('resume-site.rail-expand', v ? '1' : '0')
+  } catch (e) { /* ignore */ }
+})
+
+/* 收回态缩写：中文取首字，英文取前 2 个字母 */
+function glyphOf(m) {
+  const base = String(m.label?.[lang.value] ?? m.label?.zh ?? m.type ?? m.id)
+  return lang.value === 'zh' ? base.slice(0, 1) : base.slice(0, 2)
+}
+
+/* ================= 模块池不设限（需求 1）：全部模块类型可添加 =================
+   - 池 = 所有 MODULE_IDS（含已用的），标注已用次数、可重复添加副本
+   - 添加走 createModuleInstance → 唯一实例 id（如 skills-2），独立编辑/排序/删除 */
 const pool = computed(() =>
-  MODULE_IDS.filter((id) => !modules.value.some((m) => m.id === id))
+  MODULE_IDS.map((type) => ({
+    type,
+    count: modules.value.filter((m) => (m.type ?? m.id) === type).length
+  }))
 )
 const poolSel = ref('')
 watch(pool, (p) => {
-  if (!p.includes(poolSel.value)) poolSel.value = p[0] ?? ''
+  if (!p.some((x) => x.type === poolSel.value)) poolSel.value = p[0]?.type ?? ''
 }, { immediate: true })
-function poolName(id) {
-  return MODULE_LABELS[id]?.[lang.value] ?? MODULE_LABELS[id]?.zh ?? id
+function poolName(type) {
+  return MODULE_LABELS[type]?.[lang.value] ?? MODULE_LABELS[type]?.zh ?? type
 }
 
 /* ================= 双向联动：点左侧 → 页面高亮 + 配置区 ================= */
@@ -118,22 +142,14 @@ function removeHist(m) {
 }
 function doAdd() {
   if (!poolSel.value) return
-  const idx = modules.value.length
-  withHistory(() => {
-    addModule(version.value, {
-      id: poolSel.value,
-      enabled: true,
-      order: idx,
-      label: MODULE_LABELS[poolSel.value] ?? { zh: poolSel.value, en: poolSel.value },
-      animation: 'fade-up',
-      textAnim: 'typewriter',
-      fontScale: 1,
-      emphasize: false,
-      variant: 'a'
-    })
+  /* 生成唯一实例（type 或 type-N 副本）→ 当前设备列表追加 */
+  const cfg = createModuleInstance(version.value, poolSel.value, {
+    order: modules.value.length,
+    lang: lang.value
   })
-  selectInSelection(poolSel.value)
-  selectInConsole(poolSel.value)
+  withHistory(() => { addModule(version.value, cfg) })
+  selectInSelection(cfg.id)   /* 选中新实例（副本 id 唯一） */
+  selectInConsole(cfg.id)
 }
 function resetHist() {
   withHistory(() => resetTemplateModules())
@@ -145,6 +161,9 @@ const l = {
   add: { zh: '添加', en: 'Add' },
   reset: { zh: '恢复默认', en: 'Reset' },
   none: { zh: '（无可用）', en: '(None)' },
+  expand: { zh: '展开模块名', en: 'Expand names' },
+  collapse: { zh: '收回模块名', en: 'Collapse names' },
+  copy: { zh: '副本', en: 'Copy' },
   on: { zh: '启用', en: 'Enable' },
   off: { zh: '停用', en: 'Disable' },
   up: { zh: '上移', en: 'Up' },
@@ -154,8 +173,18 @@ const l = {
 </script>
 
 <template>
-  <div class="rail">
-    <div class="rail__head">{{ l.title[lang] }}</div>
+  <div class="rail" :class="{ 'rail--collapsed': !railExpand }">
+    <div class="rail__head">
+      <span>{{ l.title[lang] }}</span>
+      <button
+        type="button"
+        class="rail__expand"
+        :title="railExpand ? l.collapse[lang] : l.expand[lang]"
+        :aria-label="railExpand ? l.collapse[lang] : l.expand[lang]"
+        :aria-expanded="railExpand"
+        @click="railExpand = !railExpand"
+      >{{ railExpand ? '▾' : '▸' }}</button>
+    </div>
 
     <!-- ===== 模块树 ===== -->
     <div class="rail__list">
@@ -165,7 +194,8 @@ const l = {
         class="rail__row"
         :class="{
           'rail__row--active': activeId === m.id,
-          'rail__row--off': !m.enabled
+          'rail__row--off': !m.enabled,
+          'rail__row--collapsed': !railExpand
         }"
         :data-module-id="m.id"
         role="button"
@@ -200,8 +230,9 @@ const l = {
           <span class="rail__switch-knob" />
         </button>
 
+        <!-- 展开态：完整模块名；收回态：缩写 -->
         <span class="rail__name" :class="{ 'rail__name--muted': !m.enabled }">
-          {{ labelOf(m) }}
+          {{ railExpand ? labelOf(m) : glyphOf(m) }}
         </span>
 
         <span class="rail__ops">
@@ -229,7 +260,7 @@ const l = {
       </div>
     </div>
 
-    <!-- ===== 添加 + 恢复默认 ===== -->
+    <!-- ===== 添加（模块池不设限，可重复加副本）+ 恢复默认 ===== -->
     <div class="rail__foot">
       <div class="rail__add">
         <select
@@ -239,13 +270,16 @@ const l = {
           :title="l.addTo[lang]"
           @change="poolSel = $event.target.value"
         >
-          <option v-for="id in pool" :key="id" :value="id">{{ poolName(id) }}</option>
+          <option v-for="p in pool" :key="p.type" :value="p.type">
+            {{ poolName(p.type) }}{{ p.count > 0 ? ` · ${l.copy[lang]}×${p.count}` : '' }}
+          </option>
         </select>
         <span v-else class="rail__none">{{ l.none[lang] }}</span>
         <button
           type="button"
           class="rail__add-btn"
           :disabled="!poolSel"
+          :title="l.addTo[lang]"
           @click="doAdd"
         >＋</button>
       </div>
@@ -272,7 +306,41 @@ const l = {
   color: var(--c-text-3, var(--text-muted));
   padding: 0 var(--space-1);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
 }
+/* 展开/收回按钮 */
+.rail__expand {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--c-text-3, var(--text-muted));
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.rail__expand:hover {
+  color: var(--c-accent, var(--accent-cyan));
+  background: var(--c-hover, var(--glass-bg-hover));
+}
+
+/* ---------- 收回态（需求 1）：行窄，只显示缩写，隐藏操作按钮 ---------- */
+.rail--collapsed .rail__row {
+  gap: 2px;
+  padding: 4px 4px;
+}
+.rail--collapsed .rail__name {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-sm);
+}
+.rail--collapsed .rail__ops { display: none; }
 
 /* ---------- 模块树 ---------- */
 .rail__list {

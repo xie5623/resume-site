@@ -10,11 +10,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -61,6 +65,7 @@ function backToTop() {
 <template>
   <footer
     class="footer container"
+    :class="deviceCls"
     :data-revealed="revealed ? 'yes' : 'no'"
   >
     <div class="footer__top">
@@ -195,4 +200,15 @@ function backToTop() {
     text-align: center;
   }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.footer.is-mobile { padding: var(--space-6) 0 var(--space-5); }
+.footer.is-mobile .footer__top,
+.footer.is-mobile .footer__bottom {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+}
+.footer.is-mobile .footer__top { gap: var(--space-5); }
 </style>

@@ -10,11 +10,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -66,7 +70,7 @@ function onSubmit() {
   <section
     class="contact container"
     :data-revealed="revealed ? 'yes' : 'no'"
-    :class="`contact--${variant}`"
+    :class="[deviceCls, `contact--${variant}`]"
   >
     <header class="module__head">
       <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
@@ -317,4 +321,14 @@ function onSubmit() {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.contact.is-mobile { padding: var(--space-6) 0; }
+.contact.is-mobile .module__head { margin-bottom: var(--space-6); }
+.contact.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.contact.is-mobile .contact__layout { grid-template-columns: 1fr; gap: var(--space-5); }
+.contact.is-mobile .contact__link-grid { grid-template-columns: 1fr; gap: var(--space-3); }
+.contact.is-mobile .contact__link { padding: var(--space-3); }
+.contact.is-mobile .contact__form-panel { padding: var(--space-5); }
+.contact.is-mobile .contact__submit { width: 100%; text-align: center; justify-content: center; }
 </style>

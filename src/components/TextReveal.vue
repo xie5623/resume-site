@@ -32,7 +32,10 @@ const props = defineProps({
   as:       { type: String, default: 'span' },
   delay:    { type: Number, default: 0 },
   duration: { type: Number, default: undefined },
-  autoplay: { type: Boolean, default: true }
+  autoplay: { type: Boolean, default: true },
+  /* caret：typewriter 光标字符。默认 ''（无光标，静态标题不该闪烁）；
+     动态打字机行（如 Hero 轮换角色）显式传 '▍' */
+  caret:    { type: [String, Boolean], default: '' }
 })
 
 const root = ref(null)
@@ -48,7 +51,8 @@ function setup() {
   root.value.textContent = props.text
   api = useTextAnim(root.value, props.anim, {
     delay: props.delay,
-    duration: props.duration
+    duration: props.duration,
+    caret: props.caret
   })
   if (props.autoplay) api.start()
 }

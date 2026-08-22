@@ -21,7 +21,7 @@ import { useConsole } from '@/composables/useConsole'
 
 const { version } = useVersion()
 const { lang } = useI18n()
-const { getTemplateModules, addModule, removeModule, moveModule, toggleModule, resetTemplateModules } = useTemplates()
+const { getTemplateModules, addModule, removeModule, moveModule, toggleModule, createModuleInstance, resetTemplateModules } = useTemplates()
 const { selectModule, openConsole } = useConsole()
 
 /* ---------- 拖拽排序（HTML5 DnD，从抓手处拖起；松手 moveModule 持久化 → 页面实时重排） ---------- */
@@ -61,21 +61,24 @@ function onDragEnd() {
 /* ---------- 当前模板全部模块（含停用，按 list 顺序） ---------- */
 const allModules = computed(() => getTemplateModules(version.value))
 
-/* ---------- 可用模块池（未在当前模板中的 id） ---------- */
+/* ---------- 模块池不设限：全部类型可加（含已用的，可重复加副本） ---------- */
 const pool = computed(() =>
-  MODULE_IDS.filter((id) => !allModules.value.some((m) => m.id === id))
+  MODULE_IDS.map((type) => ({
+    type,
+    count: allModules.value.filter((m) => (m.type ?? m.id) === type).length
+  }))
 )
 
 const poolSel = ref('')
 watch(pool, (p) => {
-  if (!p.includes(poolSel.value)) poolSel.value = p[0] ?? ''
+  if (!p.some((x) => x.type === poolSel.value)) poolSel.value = p[0]?.type ?? ''
 }, { immediate: true })
 
 function labelOf(m) {
   return m.label?.[lang.value] ?? m.label?.zh ?? m.id
 }
-function poolName(id) {
-  return MODULE_LABELS[id]?.[lang.value] ?? MODULE_LABELS[id]?.zh ?? id
+function poolName(type) {
+  return MODULE_LABELS[type]?.[lang.value] ?? MODULE_LABELS[type]?.zh ?? type
 }
 
 /* ---------- 操作 ---------- */
@@ -93,18 +96,12 @@ function remove(m) {
 }
 function doAdd() {
   if (!poolSel.value) return
-  const idx = allModules.value.length
-  addModule(version.value, {
-    id: poolSel.value,
-    enabled: true,
-    order: idx,
-    label: MODULE_LABELS[poolSel.value] ?? { zh: poolSel.value, en: poolSel.value },
-    animation: 'fade-up',
-    textAnim: 'typewriter',
-    fontScale: 1,
-    emphasize: false,
-    variant: 'a'
+  const cfg = createModuleInstance(version.value, poolSel.value, {
+    order: allModules.value.length,
+    lang: lang.value
   })
+  addModule(version.value, cfg)
+  selectModule(cfg.id)
 }
 function edit(m) {
   selectModule(m.id)
@@ -159,7 +156,7 @@ const l = {
         </button>
 
         <span class="mm-tab__name" :title="labelOf(m)">{{ labelOf(m) }}</span>
-        <span class="mm-tab__id">{{ m.id }}</span>
+        <span class="mm-tab__id">{{ m.type ?? m.id }}{{ (m.type ?? m.id) !== m.id ? ` · ${m.id}` : '' }}</span>
 
         <div class="mm-tab__ops">
           <button type="button" class="mm-tab__icon" :disabled="idx === 0" title="上移" @click="moveUp(idx)">↑</button>
@@ -180,7 +177,9 @@ const l = {
           :value="poolSel"
           @change="poolSel = $event.target.value"
         >
-          <option v-for="id in pool" :key="id" :value="id">{{ poolName(id) }}</option>
+          <option v-for="p in pool" :key="p.type" :value="p.type">
+            {{ poolName(p.type) }}{{ p.count > 0 ? ` · 副本×${p.count}` : '' }}
+          </option>
         </select>
         <span v-else class="mm-tab__none">{{ l.none[lang] }}</span>
         <button

@@ -18,11 +18,15 @@ import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -51,7 +55,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   <section
     class="edu container"
     :data-revealed="revealed ? 'yes' : 'no'"
-    :class="`edu--${variant}`"
+    :class="[deviceCls, `edu--${variant}`]"
   >
     <header class="module__head">
       <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
@@ -214,4 +218,12 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   padding-left: 0;
   margin-bottom: 0;
 }
+
+/* ==================== 手机端布局（DEVICE 维度） ==================== */
+.edu.is-mobile { padding: var(--space-6) 0; }
+.edu.is-mobile .module__head { margin-bottom: var(--space-6); }
+.edu.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.edu.is-mobile .edu__item { padding-left: calc(var(--space-5) + 6px); margin-bottom: var(--space-4); }
+.edu.is-mobile .edu__card { padding: var(--space-4); }
+.edu.is-mobile .edu--b .edu__timeline { grid-template-columns: 1fr; gap: var(--space-4); }
 </style>

@@ -35,8 +35,9 @@ body {
 .site-bg {
   position: relative;
   background:
-    radial-gradient(60rem 40rem at 85% -10%, var(--accent-purple-soft) 0%, transparent 60%),
-    radial-gradient(50rem 35rem at -10% 20%, var(--accent-cyan-soft) 0%, transparent 55%),
+    radial-gradient(48rem 32rem at 82% -6%, var(--accent-purple-soft) 0%, transparent 58%),
+    radial-gradient(40rem 28rem at 12% 14%, var(--accent-cyan-soft) 0%, transparent 52%),
+    radial-gradient(56rem 40rem at 50% 108%, var(--accent-purple-soft) 0%, transparent 62%),
     linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 45%, var(--bg-deep) 100%);
 }
 
@@ -232,4 +233,11 @@ body[data-drag-active] {
 }
 body[data-drag-active] .module-section * {
   transition: none !important;
+}
+
+/* 编辑面板拉宽拖动中（ConsolePanel resize handle）：禁止选中 + 显示左右调整光标 */
+body.resizing-panel {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
 }

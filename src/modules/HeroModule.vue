@@ -19,11 +19,16 @@ import { useTemplates } from '@/composables/useTemplates'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
+import { useDeviceLayout } from '@/composables/useDeviceLayout'
+import { useDevice } from '@/composables/useDevice'
 
 const props = defineProps({
   config: { type: Object, required: true },
   lang: { type: String, default: 'zh' }
 })
+
+/* ===================== 双端布局（DEVICE 维度）：有效设备 → is-mobile 类 ===================== */
+const { deviceCls } = useDeviceLayout()
 
 /* ===================== 可编辑元素注册（需求 4：标记 + 注册表） ===================== */
 const { ed } = useEditableElement(props.config.id, [
@@ -80,10 +85,11 @@ const STATS = computed(() => {
   return Array.isArray(stats) ? stats : []
 })
 
-/* ===================== 向下滚动目标（模板感知：读运行时模板编排） ===================== */
+/* ===================== 向下滚动目标（模板感知：读运行时模板编排，按生效设备） ===================== */
 const { enabledModules: getEnabledModules } = useTemplates()
+const { effectiveDevice } = useDevice()
 const scrollTarget = computed(() => {
-  const mods = getEnabledModules(version.value)
+  const mods = getEnabledModules(version.value, effectiveDevice.value)
   const idx = mods.findIndex((m) => m.id === 'hero')
   const next = mods[idx + 1] ?? mods[0] ?? { id: 'about' }
   return `#${next.id}`
@@ -93,7 +99,7 @@ const scrollTarget = computed(() => {
 <template>
   <section
     class="hm-hero"
-    :class="[`hm-hero--${config.variant}`, { 'is-revealed': revealed }]"
+    :class="[deviceCls, `hm-hero--${config.variant}`, { 'is-revealed': revealed }]"
   >
     <!-- ======== 背景光效（装饰性光晕球） ======== -->
     <div class="hm-hero__bg" aria-hidden="true">
@@ -118,12 +124,14 @@ const scrollTarget = computed(() => {
 
         <!-- 打字机标语：不重建组件（:key 重建会导致完整文本闪现再逐字，
              即首屏"抽搐屏闪"元凶之一）。TextReveal 内部已 watch text
-             自动重新拆分播放，直接改 :text 即可平滑轮换。 -->
+             自动重新拆分播放，直接改 :text 即可平滑轮换。
+             caret='▍'：只有动态轮换行显示闪烁光标，静态标题（name 等）无光标。 -->
         <p class="hm-hero__role" aria-live="polite" v-editable="ed('roles')">
           <TextReveal
             :anim="config.textAnim"
             :text="roleText"
             :delay="0.3"
+            caret="▍"
           />
         </p>
 
@@ -431,4 +439,31 @@ const scrollTarget = computed(() => {
   .hm-hero__stats { flex-direction: column; }
   .hm-hero__scroll { display: none; }
 }
+
+/* ==================== 手机端布局（DEVICE 维度，.is-mobile 由 useDeviceLayout 注入） ====================
+   生效设备 = 手机（真实视口 <768 或编辑器切手机视口）时：
+   - 首屏不再撑满一屏（紧凑、信息优先）
+   - 大标题/头衔字号下调，间距收紧
+   - CTA 全宽堆叠（触屏友好）
+   - 装饰光球减淡/隐藏，滚动指示器隐藏（省电 + 少遮挡） */
+.hm-hero.is-mobile {
+  min-height: auto;
+  padding: var(--space-8) 0 var(--space-12);
+}
+.hm-hero.is-mobile .hm-hero__inner { gap: var(--space-6); }
+.hm-hero.is-mobile .hm-hero__greeting { margin-top: var(--space-6); }
+.hm-hero.is-mobile .hm-hero__name { font-size: calc(var(--fs-2xl) * 1.3 * var(--fs-scale)); }
+.hm-hero.is-mobile .hm-hero__role { font-size: calc(var(--fs-lg) * var(--fs-scale)); }
+.hm-hero.is-mobile .hm-hero__tagline { font-size: calc(var(--fs-base) * var(--fs-scale)); }
+.hm-hero.is-mobile .hm-hero__actions { flex-direction: column; }
+.hm-hero.is-mobile .hm-hero__actions .glass-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+.hm-hero.is-mobile .hm-hero__stats { flex-direction: column; }
+.hm-hero.is-mobile .hm-hero__card { width: 100%; max-width: none; }
+.hm-hero.is-mobile .hm-hero__orb { opacity: 0.22; }
+.hm-hero.is-mobile .hm-hero__orb--3 { display: none; }
+.hm-hero.is-mobile .hm-hero__scroll { display: none; }
 </style>

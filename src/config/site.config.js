@@ -120,6 +120,13 @@ function moduleCfg(id, { enabled = true, order = 0, animation = 'fade-up',
   }
 }
 
+/* ===================== 设备（DEVICE 维度·第四层） ===================== */
+/** 允许的设备 id（桌面版 / 手机版两套专属模板） */
+export const DEVICE_IDS = ['desktop', 'mobile']
+
+/** 默认设备（无手动切换时） */
+export const DEFAULT_DEVICE = 'desktop'
+
 /* ===================== 版本 ===================== */
 /** 允许的版本 id（切换器只渲染这些版本） */
 export const VERSION_IDS = ['senior', 'graduate']
@@ -156,6 +163,24 @@ export const VERSIONS = {
       moduleCfg('portfolio',    { order: 7,  animation: 'zoom-in' }),
       moduleCfg('contact',      { order: 8,  animation: 'fade-up' }),
       moduleCfg('footer',       { order: 9,  animation: 'none', textAnim: 'none' })
+    ],
+    /* 手机版专属编排（DEVICE 维度，module-builder T3 细化）：可完全不同。
+       - 精简掉 portfolio（移动端少滚动）
+       - 动效改轻量：全 fade-* 系、hero 去文字动画（省电、少卡顿）
+       - 信息优先：skills 用标签云 variant c（少占高度）、
+         experience 用卡片列表 variant c（比时间线紧凑）、
+         hero fontScale 0.92 更紧凑（配合 .is-mobile 布局收紧）
+       运行时编辑走 useTemplates（desktop/mobile 两套独立）。 */
+    mobile: [
+      moduleCfg('hero',         { order: 0,  animation: 'fade-in',  textAnim: 'none', variant: 'a', fontScale: 0.92 }),
+      moduleCfg('about',        { order: 1,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('experience',   { order: 3,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('projects',     { order: 4,  animation: 'fade-up',  variant: 'b' }),
+      moduleCfg('education',    { order: 5,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('certificates', { order: 6,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('contact',      { order: 7,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('footer',       { order: 8,  animation: 'none', textAnim: 'none' })
     ]
   },
 
@@ -183,6 +208,21 @@ export const VERSIONS = {
       moduleCfg('experience',   { order: 4,  animation: 'fade-up', label: { zh: '实习经历', en: 'Internship' } }),
       moduleCfg('certificates', { order: 5,  animation: 'fade-up', variant: 'c' }),
       moduleCfg('contact',      { order: 6,  animation: 'fade-up' }),
+      moduleCfg('footer',       { order: 7,  animation: 'none', textAnim: 'none' })
+    ],
+    /* 手机版专属编排（DEVICE 维度，module-builder T3 细化）：模块集与桌面
+       一致但更紧凑轻量：
+       - hero 去文字动画 + fontScale 0.92（更紧凑）
+       - 动效重活换轻量（zoom-in / letter-* → fade-up，移动端更顺滑）
+       - skills 标签云 variant c、experience 卡片列表 variant c（少占高度） */
+    mobile: [
+      moduleCfg('hero',         { order: 0,  animation: 'fade-in',  textAnim: 'none', variant: 'a', fontScale: 0.92 }),
+      moduleCfg('education',    { order: 1,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('projects',     { order: 3,  animation: 'fade-up',  variant: 'b' }),
+      moduleCfg('experience',   { order: 4,  animation: 'fade-up',  variant: 'c', label: { zh: '实习经历', en: 'Internship' } }),
+      moduleCfg('certificates', { order: 5,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('contact',      { order: 6,  animation: 'fade-up',  variant: 'a' }),
       moduleCfg('footer',       { order: 7,  animation: 'none', textAnim: 'none' })
     ]
   }
@@ -219,6 +259,13 @@ export function getTemplates() {
 /** 返回某模板的全部模块配置（未过滤，含 disabled）；无参时默认模板 */
 export function getTemplateModules(templateId = DEFAULT_TEMPLATE) {
   return getTemplate(templateId).modules
+}
+
+/** 按设备取某模板的模块编排（静态配置；运行时编辑请走 useTemplates） */
+export function getTemplateModulesForDevice(templateId = DEFAULT_TEMPLATE, device = DEFAULT_DEVICE) {
+  const tpl = getTemplate(templateId)
+  if (device === 'mobile' && Array.isArray(tpl.mobile)) return tpl.mobile
+  return tpl.modules
 }
 
 /* ===================== 派生帮助函数 ===================== */
