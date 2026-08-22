@@ -1,0 +1,235 @@
+/* ============================================================
+   site.config.js — 站点配置（阶段二"用户改配置"的入口）
+   ------------------------------------------------------------
+   这是整站的唯一配置源。阶段二将提供可视化界面让用户在这里
+   增删模块、切换动画、调整字号与强调，因此：
+     1. 字段命名要稳定（前端/后端/界面三方共用）
+     2. 每个字段都要有默认值（缺省也能跑）
+     3. 注释务必详细（用户会直接改这个文件）
+
+   多版本机制（VERSIONS）：
+     - VERSIONS 是按版本组织的配置字典，每个版本是一份完整配置
+       （brand / lang / stickyNav / modules）。
+     - DEFAULT_VERSION = 'senior'（资深版）为默认版本，
+       CONFIG 是它的向后兼容别名（老代码照常读 CONFIG.modules 等）。
+     - 应届生版（graduate）复用同一批模块组件，仅重排/精简 modules，
+       详细文案与实习措辞由 module-builder(T3) / i18n-dev(T2) 细化。
+   ============================================================ */
+
+/* 允许的模块 id（注册表校验用） */
+export const MODULE_IDS = [
+  'hero', 'about', 'skills', 'experience',
+  'projects', 'education', 'certificates', 'portfolio',
+  'contact', 'footer'
+]
+
+/* 模块显示名（中英双语，导航/占位卡片用） */
+export const MODULE_LABELS = {
+  hero:         { zh: '首屏',     en: 'Hero' },
+  about:        { zh: '关于我',   en: 'About' },
+  skills:       { zh: '专业技能', en: 'Skills' },
+  experience:   { zh: '工作经历', en: 'Experience' },
+  projects:     { zh: '项目',     en: 'Projects' },
+  education:    { zh: '教育背景', en: 'Education' },
+  certificates: { zh: '证书认证', en: 'Certificates' },
+  portfolio:    { zh: '作品集',   en: 'Portfolio' },
+  contact:      { zh: '联系方式', en: 'Contact' },
+  footer:       { zh: '页脚',     en: 'Footer' }
+}
+
+/* ===================== 允许值常量表 ===================== */
+/* 阶段二下拉框直接读这些常量，保证不产生非法值 */
+
+/** 区块入场动画：组件用 useReveal 消费 */
+export const ALLOWED_ANIMATIONS = [
+  'fade-up',      // 自下而上淡入（默认）
+  'fade-down',    // 自上而下淡入
+  'fade-left',    // 自左向右淡入
+  'fade-right',   // 自右向左淡入
+  'zoom-in',      // 由小放大淡入
+  'flip-up',      // 翻转上移
+  'slide-blur',   // 位移 + 模糊消散
+  /* --- 动画系统新增预设（useReveal 已支持） --- */
+  'fade-in',          // 纯淡入
+  'slide-left',       // 自左滑入
+  'slide-right',      // 自右滑入
+  'scale-in',         // 放大淡入（zoom-in 的变体）
+  'blur-in',          // 模糊到清晰
+  'flip-in',          // 翻转进入
+  'stagger-children', // 子元素错峰入场
+  'none'          // 无动画（直接显示）
+]
+
+/** 文字入场动画：用 <TextReveal> 组件消费 */
+export const ALLOWED_TEXT_ANIMS = [
+  'typewriter',   // 打字机逐字出现
+  'word-fade',    // 逐词淡入
+  'letter-float', // 逐字浮动
+  'gradient-shift', // 渐变流动
+  /* --- 动画系统新增预设（useTextAnim 已支持） --- */
+  'letter-stagger', // 逐字上浮（letter-float 的别名）
+  'blur-in',        // 模糊到清晰
+  'line-clip',      // 行遮罩展开
+  'none'          // 无文字动画
+]
+
+/** 布局变体：同一模块可提供多种排版样式 */
+export const ALLOWED_VARIANTS = ['a', 'b', 'c']
+
+/** 每个模块可配置的最小/最大字号缩放（阶段二"内容自适应字号"） */
+export const FONT_SCALE_RANGE = { min: 0.8, max: 1.6, step: 0.05 }
+
+/** 入场动画时长（秒）配置，供 useReveal 读取 */
+export const ANIMATION_DURATION = {
+  fast: 0.5,
+  base: 0.8,
+  slow: 1.2
+}
+
+/* ===================== 模块配置默认值 ===================== */
+/**
+ * 单个模块的完整配置字段说明：
+ *  - id        : 唯一标识，须在 MODULE_IDS 中
+ *  - enabled   : 是否渲染（阶段二"增删模块"改这里）
+ *  - order     : 渲染顺序（升序）
+ *  - label     : 导航/占位用显示名
+ *  - animation : 区块入场动画，见 ALLOWED_ANIMATIONS
+ *  - textAnim  : 区块内标题/正文文字动画，见 ALLOWED_TEXT_ANIMS
+ *  - fontScale : 字号缩放系数，1 为默认，范围见 FONT_SCALE_RANGE
+ *  - emphasize : 是否启用霓虹渐变强调标题（text-emphasize 类）
+ *  - variant   : 布局变体 'a' | 'b' | 'c'
+ *  - label     : （可选）覆盖默认显示名（如应届生版 experience 显示「实习经历」）
+ */
+function moduleCfg(id, { enabled = true, order = 0, animation = 'fade-up',
+                         textAnim = 'typewriter', fontScale = 1,
+                         emphasize = false, variant = 'a',
+                         label = null } = {}) {
+  return {
+    id,
+    enabled,
+    order,
+    label: label ?? MODULE_LABELS[id] ?? { zh: id, en: id },
+    animation,
+    textAnim,
+    fontScale,
+    emphasize,
+    variant
+  }
+}
+
+/* ===================== 版本 ===================== */
+/** 允许的版本 id（切换器只渲染这些版本） */
+export const VERSION_IDS = ['senior', 'graduate']
+
+/** 默认版本：无参调用（getEnabledModules() 等）时使用的版本 */
+export const DEFAULT_VERSION = 'senior'
+
+/**
+ * 多版本配置字典：版本 id → 完整站点配置。
+ * 字段：
+ *  - id        : 版本唯一标识（与 key 一致）
+ *  - label     : 版本名（版本切换器按钮文案，中英双语）
+ *  - brand     : 站点品牌名。字符串或 { zh, en } 对象（跟随语言）
+ *  - lang      : 该版本默认语言（i18n 初始化读取）
+ *  - stickyNav : 顶部导航是否吸顶
+ *  - modules   : 该版本的模块列表（同一批组件，可重排/精简）
+ */
+export const VERSIONS = {
+  /* -------------------- 资深版（默认） -------------------- */
+  senior: {
+    id: 'senior',
+    label: { zh: '资深版', en: 'Senior' },
+    brand: { zh: '我的简历', en: 'My Resume' },
+    lang: 'zh',
+    stickyNav: true,
+    modules: [
+      moduleCfg('hero',         { order: 0,  animation: 'fade-in', variant: 'a' }),
+      moduleCfg('about',        { order: 1,  animation: 'fade-up' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('experience',   { order: 3,  animation: 'fade-up' }),
+      moduleCfg('projects',     { order: 4,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('education',    { order: 5,  animation: 'fade-up' }),
+      moduleCfg('certificates', { order: 6,  animation: 'fade-up', variant: 'c' }),
+      moduleCfg('portfolio',    { order: 7,  animation: 'zoom-in' }),
+      moduleCfg('contact',      { order: 8,  animation: 'fade-up' }),
+      moduleCfg('footer',       { order: 9,  animation: 'none', textAnim: 'none' })
+    ]
+  },
+
+  /* -------------------- 应届生版 -------------------- */
+  /*
+   * 编排（T3 module-builder 已细化）：
+   *   hero → education(前移) → skills → projects(靠前) → experience(实习) → certificates → contact → footer
+   * - education 第 1 位：应届生以本科学历为卖点（占位：XX大学 / 计算机科学与技术 / 2021—2025）
+   * - experience 复用同一时间线组件，文案为「实习经历」应届生口吻（组件内按版本取 i18n 键）
+   * - 精简掉 about / portfolio（应届生不铺陈，聚焦学历 + 技能 + 项目）
+   * - 动效更活泼：hero 用 zoom-in、education 用 zoom-in 突出学历亮点
+   * - experience 模块 label 覆盖为「实习经历」，导航随版本正确显示
+   */
+  graduate: {
+    id: 'graduate',
+    label: { zh: '应届生版', en: 'Graduate' },
+    brand: { zh: '应届生简历', en: 'Graduate Resume' },
+    lang: 'zh',
+    stickyNav: true,
+    modules: [
+      moduleCfg('hero',         { order: 0,  animation: 'fade-in', textAnim: 'letter-float', variant: 'a' }),
+      moduleCfg('education',    { order: 1,  animation: 'zoom-in', textAnim: 'letter-stagger' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('projects',     { order: 3,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('experience',   { order: 4,  animation: 'fade-up', label: { zh: '实习经历', en: 'Internship' } }),
+      moduleCfg('certificates', { order: 5,  animation: 'fade-up', variant: 'c' }),
+      moduleCfg('contact',      { order: 6,  animation: 'fade-up' }),
+      moduleCfg('footer',       { order: 7,  animation: 'none', textAnim: 'none' })
+    ]
+  }
+}
+
+/* ===================== 向后兼容别名 ===================== */
+/**
+ * CONFIG 保留为「默认版本（资深版）」的别名。
+ * 老代码 `CONFIG.modules` / `CONFIG.lang` / `CONFIG.stickyNav` 照常可用；
+ * 注意 `CONFIG.brand` 现在是 { zh, en } 对象，取文案请用 getVersionBrand()。
+ */
+export const CONFIG = VERSIONS[DEFAULT_VERSION]
+
+/* ===================== 派生帮助函数 ===================== */
+/** 按版本 id 取版本配置；未知 id 回退默认版本（永不返回 undefined） */
+export function getVersion(id) {
+  return VERSIONS[id] ?? VERSIONS[DEFAULT_VERSION]
+}
+
+/** 所有版本（按 VERSION_IDS 顺序），给切换器渲染用 */
+export function getVersions() {
+  return VERSION_IDS.map((id) => VERSIONS[id])
+}
+
+/** 返回某版本按 order 排序且启用的模块配置数组；无参时默认资深版 */
+export function getEnabledModules(versionId = DEFAULT_VERSION) {
+  return getVersion(versionId).modules
+    .filter((m) => m.enabled)
+    .sort((a, b) => a.order - b.order)
+}
+
+/** 按 id 查某版本的模块配置，找不到返回 undefined；无参时默认资深版 */
+export function getModuleById(id, versionId = DEFAULT_VERSION) {
+  return getVersion(versionId).modules.find((m) => m.id === id)
+}
+
+/** 取某版本品牌名（跟随语言）。brand 支持字符串或 { zh, en } 对象 */
+export function getVersionBrand(versionId, lang = 'zh') {
+  const brand = getVersion(versionId)?.brand ?? ''
+  if (typeof brand === 'string') return brand
+  return brand?.[lang] ?? brand?.zh ?? ''
+}
+
+/** 校验某个模块配置是否合法，返回 { ok, errors } */
+export function validateModuleConfig(m) {
+  const errors = []
+  if (!MODULE_IDS.includes(m.id)) errors.push(`未知模块 id: ${m.id}`)
+  if (!ALLOWED_ANIMATIONS.includes(m.animation)) errors.push(`非法 animation: ${m.animation}`)
+  if (!ALLOWED_TEXT_ANIMS.includes(m.textAnim)) errors.push(`非法 textAnim: ${m.textAnim}`)
+  if (!ALLOWED_VARIANTS.includes(m.variant)) errors.push(`非法 variant: ${m.variant}`)
+  if (typeof m.fontScale !== 'number') errors.push('fontScale 必须是数字')
+  return { ok: errors.length === 0, errors }
+}

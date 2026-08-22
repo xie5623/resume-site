@@ -1,0 +1,145 @@
+/* ============================================================
+   glass.css — 毛玻璃工具类
+   依赖 tokens.css。所有玻璃卡片/导航/浮层统一用这些类，
+   保持视觉一致。
+   ============================================================ */
+
+/* ---------- 基础玻璃卡片 ---------- */
+.glass {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(var(--blur-md)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(140%);
+  box-shadow: var(--shadow-md);
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+
+.glass:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+}
+
+/* ---------- 高光顶部边框：玻璃拟态的关键细节 ---------- */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--glass-highlight) 20%,
+    var(--glass-highlight) 80%,
+    transparent 100%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ---------- 更强的玻璃（导航/浮层） ---------- */
+.glass--strong {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+}
+
+/* ---------- 内部渐变层：卡片内柔和霓虹晕 ---------- */
+.glass--glow {
+  background:
+    radial-gradient(120% 100% at 100% 0%, var(--accent-cyan-soft) 0%, transparent 55%),
+    radial-gradient(120% 100% at 0% 100%, var(--accent-purple-soft) 0%, transparent 55%),
+    var(--glass-bg);
+}
+
+/* ---------- 霓虹描边卡片（强调模块用） ---------- */
+.glass--accent {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--glass-bg), var(--glass-bg)) padding-box,
+    var(--accent-gradient) border-box;
+  box-shadow: var(--shadow-glow);
+}
+
+/* ---------- 玻璃按钮 ---------- */
+.glass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(var(--blur-sm)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(140%);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.glass-btn:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border-hover);
+  transform: translateY(-1px);
+}
+.glass-btn--accent {
+  color: #0a0e1a;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  font-weight: 700;
+}
+.glass-btn--accent:hover {
+  filter: brightness(1.1);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ---------- 玻璃输入框 ---------- */
+.glass-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-family: inherit;
+  font-size: var(--fs-base);
+  color: var(--text-primary);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  outline: none;
+  backdrop-filter: blur(var(--blur-sm)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-sm)) saturate(140%);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.glass-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px var(--accent-cyan-soft);
+}
+
+/* ---------- 玻璃容器约束 ---------- */
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}
+
+/* ---------- 响应式栅格工具 ---------- */
+/* 默认（窄屏）单列；≥ --bp-md 起按列数展开。
+   断点字面量对应 tokens.css 的 --bp-md: 768px。 */
+.grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: 1fr; /* 移动端默认单列 */
+}
+@media (min-width: 768px) {
+  .grid--2 { grid-template-columns: repeat(2, 1fr); }
+  .grid--3 { grid-template-columns: repeat(3, 1fr); }
+}
+/* 自适应列：列宽至少 X，空间够就自动加列（窄屏自然收成单列） */
+.grid--auto {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}

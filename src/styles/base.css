@@ -1,0 +1,122 @@
+/* ============================================================
+   base.css — Reset + 全局排版 + 滚动条 + 背景
+   依赖 tokens.css（先于本文件引入）。
+   ============================================================ */
+
+/* ---------- Reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  /* 深色渐变底 + 光晕 + 网格 由 .site-bg 实现（见下） */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- 背景装饰：渐变 + 光晕 + 网格 ---------- */
+/* 用法：<body class="site-bg"> 或直接在 App 根节点加 class */
+.site-bg {
+  position: relative;
+  background:
+    radial-gradient(60rem 40rem at 85% -10%, var(--accent-purple-soft) 0%, transparent 60%),
+    radial-gradient(50rem 35rem at -10% 20%, var(--accent-cyan-soft) 0%, transparent 55%),
+    linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 45%, var(--bg-deep) 100%);
+}
+
+.site-bg::before {
+  /* 网格线装饰 */
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+/* ---------- 排版 ---------- */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+p { margin-bottom: var(--space-4); }
+
+a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+a:hover { color: var(--accent-purple); }
+
+img, svg, video { display: block; max-width: 100%; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+ul, ol { list-style: none; }
+
+/* 强调字号工具类：阶段二"内容自适应字号 / 强调字号"使用 */
+.text-emphasize {
+  color: transparent;
+  background: var(--accent-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  font-weight: 800;
+}
+
+/* ---------- 滚动条美化 ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--accent-cyan-soft), var(--accent-purple-soft));
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--bg-deep);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--accent-cyan), var(--accent-purple));
+}
+* { scrollbar-width: thin; scrollbar-color: var(--accent-purple-soft) var(--bg-deep); }
+
+/* ---------- 选择文本 ---------- */
+::selection {
+  background: var(--accent-purple-soft);
+  color: var(--text-primary);
+}
+
+/* ---------- 无障碍：尊重系统减少动效 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
