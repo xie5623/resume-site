@@ -76,8 +76,8 @@ export const ALLOWED_TEXT_ANIMS = [
   'none'          // 无文字动画
 ]
 
-/** 布局变体：同一模块可提供多种排版样式 */
-export const ALLOWED_VARIANTS = ['a', 'b', 'c']
+/** 布局变体：同一模块可提供多种排版样式（d = 专业技能气泡图，见 ARCHITECTURE §14） */
+export const ALLOWED_VARIANTS = ['a', 'b', 'c', 'd']
 
 /** 每个模块可配置的最小/最大字号缩放（阶段二"内容自适应字号"） */
 export const FONT_SCALE_RANGE = { min: 0.8, max: 1.6, step: 0.05 }
@@ -155,7 +155,7 @@ export const VERSIONS = {
     modules: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in', variant: 'a' }),
       moduleCfg('about',        { order: 1,  animation: 'fade-up' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'd' }),
       moduleCfg('experience',   { order: 3,  animation: 'fade-up' }),
       moduleCfg('projects',     { order: 4,  animation: 'fade-up', variant: 'b' }),
       moduleCfg('education',    { order: 5,  animation: 'fade-up' }),
@@ -167,14 +167,14 @@ export const VERSIONS = {
     /* 手机版专属编排（DEVICE 维度，module-builder T3 细化）：可完全不同。
        - 精简掉 portfolio（移动端少滚动）
        - 动效改轻量：全 fade-* 系、hero 去文字动画（省电、少卡顿）
-       - 信息优先：skills 用标签云 variant c（少占高度）、
+       - 信息优先：skills 用气泡图 variant d（--bubble-scale 缩放下少占高度）、
          experience 用卡片列表 variant c（比时间线紧凑）、
          hero fontScale 0.92 更紧凑（配合 .is-mobile 布局收紧）
        运行时编辑走 useTemplates（desktop/mobile 两套独立）。 */
     mobile: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in',  textAnim: 'none', variant: 'a', fontScale: 0.92 }),
       moduleCfg('about',        { order: 1,  animation: 'fade-up',  variant: 'a' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'd' }),
       moduleCfg('experience',   { order: 3,  animation: 'fade-up',  variant: 'c' }),
       moduleCfg('projects',     { order: 4,  animation: 'fade-up',  variant: 'b' }),
       moduleCfg('education',    { order: 5,  animation: 'fade-up',  variant: 'a' }),
@@ -203,7 +203,7 @@ export const VERSIONS = {
     modules: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in', textAnim: 'letter-float', variant: 'a' }),
       moduleCfg('education',    { order: 1,  animation: 'zoom-in', textAnim: 'letter-stagger' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'd' }),
       moduleCfg('projects',     { order: 3,  animation: 'fade-up', variant: 'b' }),
       moduleCfg('experience',   { order: 4,  animation: 'fade-up', label: { zh: '实习经历', en: 'Internship' } }),
       moduleCfg('certificates', { order: 5,  animation: 'fade-up', variant: 'c' }),
@@ -214,11 +214,12 @@ export const VERSIONS = {
        一致但更紧凑轻量：
        - hero 去文字动画 + fontScale 0.92（更紧凑）
        - 动效重活换轻量（zoom-in / letter-* → fade-up，移动端更顺滑）
-       - skills 标签云 variant c、experience 卡片列表 variant c（少占高度） */
+       - skills 气泡图 variant d（--bubble-scale 缩放下紧凑）、
+         experience 卡片列表 variant c（少占高度） */
     mobile: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in',  textAnim: 'none', variant: 'a', fontScale: 0.92 }),
       moduleCfg('education',    { order: 1,  animation: 'fade-up',  variant: 'a' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'd' }),
       moduleCfg('projects',     { order: 3,  animation: 'fade-up',  variant: 'b' }),
       moduleCfg('experience',   { order: 4,  animation: 'fade-up',  variant: 'c', label: { zh: '实习经历', en: 'Internship' } }),
       moduleCfg('certificates', { order: 5,  animation: 'fade-up',  variant: 'c' }),

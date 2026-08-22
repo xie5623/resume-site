@@ -31,7 +31,9 @@ import { useConsole } from '@/composables/useConsole'
 import { useSelection } from '@/composables/useSelection'
 import { useLayout } from '@/composables/useLayout'
 import { editing } from '@/composables/useEditingMode'
-import { capture, push, historyUpdateModule, historyToggleLayout, withHistory } from '@/composables/useHistory'
+import { capture, push, historyUpdateModule, historyToggleLayout, withHistory, historyPasteAsNewModule, historySetElementStyle, historyClearElementStyle } from '@/composables/useHistory'
+import { copyModule, clipboard } from '@/composables/useClipboard'
+import { resolveElementStyle, getElementStyle, setElementStyle } from '@/composables/useElementStyle'
 
 const { version } = useVersion()
 const { lang } = useI18n()
@@ -150,6 +152,33 @@ const selected = computed(() =>
 
 const show = computed(() => editing.value && pos.value.visible && !!selected.value)
 
+/* ================= 元素级配置（需求 2 / t6 req3）：选中元素时配置作用于该元素 =================
+   点页面元素 → selection = { kind:'element', moduleId, elementKey, itemIndex? }。
+   此时动画/字号/强调等字段应编辑【元素级】（useElementStyle），回退模块级：
+   - elementKey：列表条目（itemIndex）→ `${elementKey}.${itemIndex}`；精确字段
+     （items.N.field）→ elementKey 原样；标量 → elementKey 原样
+   - effectiveCfg：元素级 → resolveElementStyle（元素→模块→默认）；否则模块级 */
+const isElementSel = computed(() =>
+  selection.value?.kind === 'element' && !!selection.value?.elementKey
+)
+const elementKey = computed(() => {
+  const sel = selection.value
+  if (sel?.kind !== 'element' || !sel?.elementKey) return null
+  if (Number.isInteger(sel.itemIndex)) return `${sel.elementKey}.${sel.itemIndex}`
+  return sel.elementKey
+})
+const hasElementPatch = computed(() => {
+  if (!isElementSel.value || !elementKey.value || !effectiveId.value) return false
+  return !!getElementStyle(effectiveId.value, elementKey.value)
+})
+const effectiveCfg = computed(() => {
+  if (!selected.value) return null
+  if (isElementSel.value && elementKey.value) {
+    return resolveElementStyle(effectiveId.value, elementKey.value, selected.value)
+  }
+  return selected.value
+})
+
 /* ================= 模块选择：配置区 + 页面高亮双向联动 ================= */
 function onModuleChange(e) {
   const id = e.target.value
@@ -168,10 +197,15 @@ function poolName(id) {
   return MODULE_LABELS[id]?.[lang.value] ?? MODULE_LABELS[id]?.zh ?? id
 }
 
-/* ================= 配置写操作（全部走历史，可撤销） ================= */
+/* ================= 配置写操作（全部走历史，可撤销） =================
+   元素选中 → 写元素级补丁（historySetElementStyle）；否则模块级（updateModule）。 */
 function patch(p) {
   if (!selected.value) return
-  historyUpdateModule(version.value, selected.value.id, p)
+  if (isElementSel.value && elementKey.value) {
+    historySetElementStyle(effectiveId.value, elementKey.value, p)
+  } else {
+    historyUpdateModule(version.value, selected.value.id, p)
+  }
 }
 function patchAnim(e) { patch({ animation: e.target.value }) }
 function patchTextAnim(e) { patch({ textAnim: e.target.value }) }
@@ -190,9 +224,22 @@ function endScale() {
 }
 function patchFontScaleLive(e) {
   if (!selected.value) return
-  updateModule(version.value, selected.value.id, { fontScale: Number(e.target.value) })
+  const v = Number(e.target.value)
+  if (isElementSel.value && elementKey.value) {
+    setElementStyle(effectiveId.value, elementKey.value, { fontScale: v })
+  } else {
+    updateModule(version.value, selected.value.id, { fontScale: v })
+  }
 }
-function patchEmphasize() { patch({ emphasize: !selected.value.emphasize }) }
+function patchEmphasize() {
+  if (!selected.value) return
+  patch({ emphasize: !effectiveCfg.value?.emphasize })
+}
+/** 清除该元素元素级补丁 → 回到跟随模块级 */
+function clearElementPatch() {
+  if (!isElementSel.value || !elementKey.value) return
+  historyClearElementStyle(effectiveId.value, elementKey.value)
+}
 
 /* ---------- 拖拽摆放开关（需求 5） ---------- */
 const layoutOn = computed(() => (selected.value ? isLayoutEnabled(selected.value.id) : false))
@@ -209,6 +256,27 @@ function resetModuleLayout() {
   withHistory(() => clearModuleLayout(selected.value.id))
 }
 
+/* ---------- 复制模块 / 粘贴为副本（需求 6，模块级） ----------
+   复制：copyModule 捕获模块类型（namespace）→ 剪贴板 kind='module'。
+   粘贴：historyPasteAsNewModule 生成同类型新实例（skills-2）并选中。
+   仅「剪贴板为模块」时可粘贴（元素级粘贴走选中工具条 / Ctrl+V）。 */
+const moduleCopied = ref(false)
+function copyThisModule() {
+  if (!selected.value) return
+  copyModule(selected.value.id)
+  moduleCopied.value = true
+  setTimeout(() => { moduleCopied.value = false }, 1600)
+}
+const pasteModuleEnabled = computed(() => clipboard.value?.kind === 'module')
+function pasteThisModule() {
+  if (!pasteModuleEnabled.value) return
+  const cfg = historyPasteAsNewModule()
+  if (cfg) {
+    selectInSelection(cfg.id) /* 新实例高亮 + 左侧树联动 */
+    selectInConsole(cfg.id)
+  }
+}
+
 /* ---------- 文案（id 仅用于语言切换，无变化） ---------- */
 const labels = {
   title: { zh: '模块配置', en: 'Module config' },
@@ -223,7 +291,13 @@ const labels = {
   variant: { zh: '布局变体', en: 'Layout variant' },
   close: { zh: '收起配置浮窗', en: 'Hide config panel' },
   open: { zh: '打开模块配置', en: 'Open module config' },
-  drag: { zh: '拖动可移动位置', en: 'Drag to move' }
+  drag: { zh: '拖动可移动位置', en: 'Drag to move' },
+  copyModule: { zh: '复制本模块（可粘为副本）', en: 'Copy this module' },
+  pasteModule: { zh: '粘贴为副本模块', en: 'Paste as duplicate module' },
+  moduleCopied: { zh: '已复制模块', en: 'Module copied' },
+  elementMode: { zh: '元素级', en: 'Element' },
+  elementReset: { zh: '清除元素级', en: 'Clear element style' },
+  elementHint: { zh: '当前配置作用于选中元素', en: 'Config applies to selected element' }
 }
 </script>
 
@@ -284,10 +358,46 @@ const labels = {
           </select>
         </label>
 
+        <!-- 复制模块 / 粘贴为副本（需求 6） -->
+        <div class="cfg-field">
+          <span class="cfg-label">⧉ {{ labels.copyModule[lang] }}</span>
+          <div class="cfg-clone-row">
+            <button
+              type="button"
+              class="cfg-clone-btn"
+              :title="labels.copyModule[lang]"
+              @click="copyThisModule"
+            >{{ moduleCopied ? labels.moduleCopied[lang] : '复制' }}</button>
+            <button
+              type="button"
+              class="cfg-clone-btn"
+              :disabled="!pasteModuleEnabled"
+              :title="labels.pasteModule[lang]"
+              @click="pasteThisModule"
+            >{{ labels.pasteModule[lang] }}</button>
+          </div>
+        </div>
+
+        <!-- 元素级模式指示（需求 2：选中元素时配置作用于该元素） -->
+        <div v-if="isElementSel && elementKey" class="cfg-field cfg-element">
+          <div class="cfg-element__bar">
+            <span class="cfg-element__badge">{{ labels.elementMode[lang] }}</span>
+            <code class="cfg-element__key">{{ elementKey }}</code>
+          </div>
+          <span class="cfg-element__hint">{{ labels.elementHint[lang] }}</span>
+          <button
+            v-if="hasElementPatch"
+            type="button"
+            class="cfg-element__reset"
+            :title="labels.elementReset[lang]"
+            @click="clearElementPatch"
+          >{{ labels.elementReset[lang] }}</button>
+        </div>
+
         <!-- 入场动画 -->
         <div class="cfg-field">
           <span class="cfg-label">{{ labels.animation[lang] }}</span>
-          <select class="cfg-select" :value="selected?.animation" @change="patchAnim">
+          <select class="cfg-select" :value="effectiveCfg?.animation" @change="patchAnim">
             <option v-for="a in ALLOWED_ANIMATIONS" :key="a" :value="a">{{ a }}</option>
           </select>
         </div>
@@ -295,7 +405,7 @@ const labels = {
         <!-- 文字动画 -->
         <div class="cfg-field">
           <span class="cfg-label">{{ labels.textAnim[lang] }}</span>
-          <select class="cfg-select" :value="selected?.textAnim" @change="patchTextAnim">
+          <select class="cfg-select" :value="effectiveCfg?.textAnim" @change="patchTextAnim">
             <option v-for="a in ALLOWED_TEXT_ANIMS" :key="a" :value="a">{{ a }}</option>
           </select>
         </div>
@@ -304,7 +414,7 @@ const labels = {
         <div class="cfg-field">
           <div class="cfg-head">
             <span class="cfg-label">{{ labels.fontScale[lang] }}</span>
-            <span class="cfg-value">{{ Number(selected?.fontScale ?? 1).toFixed(2) }}×</span>
+            <span class="cfg-value">{{ Number(effectiveCfg?.fontScale ?? 1).toFixed(2) }}×</span>
           </div>
           <input
             type="range"
@@ -312,7 +422,7 @@ const labels = {
             :min="FONT_SCALE_RANGE.min"
             :max="FONT_SCALE_RANGE.max"
             :step="FONT_SCALE_RANGE.step"
-            :value="selected?.fontScale ?? 1"
+            :value="effectiveCfg?.fontScale ?? 1"
             @input="patchFontScaleLive"
             @pointerdown="beginScale"
             @focus="beginScale"
@@ -327,8 +437,8 @@ const labels = {
           <button
             type="button"
             class="cfg-switch"
-            :class="{ 'cfg-switch--on': selected?.emphasize }"
-            :aria-pressed="selected?.emphasize"
+            :class="{ 'cfg-switch--on': effectiveCfg?.emphasize }"
+            :aria-pressed="effectiveCfg?.emphasize"
             @click="patchEmphasize"
           >
             <span class="cfg-switch__knob" />
@@ -604,6 +714,29 @@ const labels = {
 }
 .cfg-layout-reset:hover { color: var(--c-warning); border-color: var(--c-warning); }
 
+/* ---------- 复制 / 粘贴模块（需求 6） ---------- */
+.cfg-clone-row {
+  display: flex;
+  gap: 6px;
+}
+.cfg-clone-btn {
+  flex: 1;
+  padding: 4px 0;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-text-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  background: var(--c-panel);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.cfg-clone-btn:hover:not(:disabled) {
+  color: var(--c-on-accent);
+  background: var(--c-grad);
+  border-color: transparent;
+}
+.cfg-clone-btn:disabled { opacity: 0.4; cursor: default; }
+
 /* ---------- 变体分段 ---------- */
 .cfg-segs {
   display: flex;
@@ -627,6 +760,53 @@ const labels = {
   background: var(--c-grad);
   border-color: transparent;
 }
+
+/* ---------- 元素级模式指示（需求 2） ---------- */
+.cfg-element {
+  padding: var(--space-2);
+  border: 1px solid rgba(55, 217, 242, 0.4);
+  border-radius: var(--radius-sm);
+  background: rgba(55, 217, 242, 0.08);
+}
+.cfg-element__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.cfg-element__badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--c-on-accent);
+  background: var(--c-grad);
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+}
+.cfg-element__key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--c-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cfg-element__hint {
+  font-size: 10px;
+  color: var(--c-text-3);
+  line-height: 1.4;
+}
+.cfg-element__reset {
+  align-self: flex-start;
+  font-size: 10px;
+  color: var(--c-text-3);
+  padding: 1px 8px;
+  border: 1px dashed var(--c-border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.cfg-element__reset:hover { color: var(--c-warning); border-color: var(--c-warning); }
 
 /* ================= 重开小按钮 ================= */
 .config-bar-pill {

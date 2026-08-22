@@ -59,7 +59,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   >
     <header class="module__head">
       <span class="module__kicker" v-editable="ed('kicker')">{{ T('kicker') }}</span>
-      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('title')">
+      <h2 class="module__title" :class="{ 'text-emphasize': config.emphasize }" v-editable="ed('title')" v-element-style="'title'">
         <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.05" />
       </h2>
       <p class="module__subtitle" v-editable="ed('subtitle')">

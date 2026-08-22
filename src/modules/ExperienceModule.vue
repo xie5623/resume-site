@@ -70,7 +70,7 @@ function badgeText(job) {
       <!-- ======== 区块标题 ======== -->
       <header class="hm-exp__head">
         <span class="hm-exp__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
-        <h2 class="hm-exp__title" :class="emphasizeClass" v-editable="ed('title')">
+        <h2 class="hm-exp__title" :class="emphasizeClass" v-editable="ed('title')" v-element-style="'title'">
           <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-exp__line"></span>

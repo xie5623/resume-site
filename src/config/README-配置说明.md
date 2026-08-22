@@ -197,6 +197,24 @@ moduleCfg('about', { order: 1, variant: 'b' }),   // a | b | c
 
 ---
 
+## 9. 元素级配置（编辑器内完成，无需改配置文件） / Per-element style (in the editor)
+
+上面的配置都是**模块级**（整块生效）。**元素级配置**（某个文字/某个气泡单独调字号、
+强调、大小）在**编辑器控制台**里完成，不写在 `site.config.js`：
+
+- 打开编辑器 → 点中某个元素（标题/正文/技能气泡等）→ 左侧「模块配置」浮窗按元素编辑
+  （字号缩放 / 渐变强调 / 大小等，由 console-dev 按需求 2/6/7 实现）。
+- 元素级样式优先级高于模块级：元素级 → 模块级 → 默认，逐级回退。
+- 持久化在浏览器 `localStorage`（key `resume-site.element-style`），刷新保留；
+  恢复默认可在控制台全局页重置。
+- **桌面版 / 手机版共享同一份元素级样式**（样式属于设计层，两端通用）。
+
+*Per-element styling (single text/bubble) is done in the editor, not in
+`site.config.js`. Element-level overrides module-level, which overrides defaults.
+Persisted to `resume-site.element-style`; shared across desktop & mobile.*
+
+---
+
 ## 快速对照表 / Cheat-sheet
 
 ```js

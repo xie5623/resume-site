@@ -35,6 +35,7 @@ import { useSelection } from '@/composables/useSelection'
 import { useInlineEdit } from '@/composables/useInlineEdit'
 import { useEditingMode } from '@/composables/useEditingMode'
 import { useConsole } from '@/composables/useConsole'
+import { resolveListItemPath, findTextFieldEl } from '@/composables/useItemPath'
 
 /* ---------- i18n：全局语言状态 + 翻译函数 ---------- */
 const { lang, t } = useI18n()
@@ -239,8 +240,10 @@ function onDocDblclick(e) {
     if (!ok) {
       /* 非字符串值：可能是列表容器（key=items 挂在 ul/ol 上）——
          尝试按「点击元素在列表中的索引 + 文本匹配字段」拼精确路径
-         moduleId.items.N.field，实现列表项级就地编辑（无需改模块模板） */
-      const precise = resolveListItemPath(t, editable, moduleId, key)
+         moduleId.items.N.field，实现列表项级就地编辑（无需改模块模板）。
+         传 e.clientY：per-item 元素（气泡 name/level 子元素 pointer-events:
+         none）时按坐标定位到具体文本字段。 */
+      const precise = resolveListItemPath(t, editable, moduleId, key, null, e.clientY)
       if (precise) {
         const el = findTextFieldEl(t, precise.text)
         pickElementOnPage(moduleId, precise.path)
@@ -256,44 +259,9 @@ function onDocDblclick(e) {
   }
 }
 
-/* ---------- 列表项精确路径解析（需求 7 增强，列表容器级标记 → 项内字段） ----------
-   T3 在列表容器（ul/ol/div）上标记 data-editable-key="moduleId.items"。
-   双击列表内文字时，这里把容器级路径解析成 items.N.field：
-   1) 找点击元素在容器直接子项中的索引 N
-   2) 读 store 里 moduleId.items.N 对象
-   3) 用点击文本匹配项内字符串字段（textContent === 字段值）→ 唯一命中即精确路径 */
-function resolveListItemPath(target, container, moduleId, listKey) {
-  if (typeof resolveContent !== 'function') return null
-  const children = Array.from(container.children)
-  let idx = -1
-  for (let i = 0; i < children.length; i++) {
-    if (children[i] === target || children[i].contains(target)) { idx = i; break }
-  }
-  if (idx < 0) return null
-  const item = resolveContent(version.value, lang.value, `${moduleId}.${listKey}.${idx}`)
-  if (!item || typeof item !== 'object' || Array.isArray(item)) return null
-  const text = (target.textContent || '').trim()
-  if (!text) return null
-  let hit = null
-  for (const [k, v] of Object.entries(item)) {
-    if (typeof v === 'string' && v.trim() === text) {
-      if (hit) return null /* 多个字段同值 → 有歧义，放弃精确匹配 */
-      hit = k
-    }
-  }
-  if (!hit) return null
-  return { path: `${listKey}.${idx}.${hit}`, text }
-}
-
-/* 找 textContent 恰好等于目标文本的最深元素（TextReveal 拆字 span → 上溯到标题/段落） */
-function findTextFieldEl(target, expected) {
-  let el = target
-  while (el && el.getAttribute && !el.hasAttribute('data-editable-key')) {
-    if ((el.textContent || '').trim() === expected) return el
-    el = el.parentElement
-  }
-  return null
-}
+/* 列表项精确路径解析（需求 7/需求 5 增强）：容器级标记 → items.N.field。
+   共享实现见 @/composables/useItemPath.js（v-editable 点击精细框选与这里
+   双击就地编辑共用同一套文本匹配逻辑）。 */
 
 /* Esc → 取消选中（inline edit 的 Esc 已在输入框内 stopPropagation） */
 function onDocKeydown(e) {

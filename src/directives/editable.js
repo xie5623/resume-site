@@ -35,6 +35,7 @@ import {
   setElementPos
 } from '@/composables/useLayout'
 import { editing } from '@/composables/useEditingMode'
+import { resolveListItemPath } from '@/composables/useItemPath'
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v))
@@ -55,11 +56,57 @@ export const vEditable = {
     el.setAttribute('data-editable-label', cfg.label || key)
     if (cfg.label) el.title = cfg.label
 
-    /* ---------- 2. 元素级选中（编辑态点击） ---------- */
+    /* ---------- 2. 元素级选中（编辑态点击） ----------
+       list 元素（type='list'，如 skills.items 挂在 ul/div 上）内点击条目：
+       先尝试【精细框选】（需求 5）——用 resolveListItemPath 把容器级标记
+       解析成 items.N.field（如 skills.items.0.name），命中则选中该最小
+       可编辑字段，控制台定位到对应输入框；未命中/歧义再回退整条选中
+       （容器 key + itemIndex，或 per-item 元素 key 本身）。 */
+    function findItemElement(target, container) {
+      if (!target || !container || typeof target.closest !== 'function') return null
+      let node = target
+      while (node && node !== container) {
+        if (node.parentNode === container) return node
+        node = node.parentNode
+      }
+      return null
+    }
+
+    /* per-item 元素（气泡等）的 key 含条目下标：items.<N> */
+    const ITEM_KEY_RE = /^(.+)\.(\d+)$/
+
     function onClick(e) {
       if (!editing.value) return
       e.preventDefault()
       e.stopPropagation()
+      if (cfg.type === 'list') {
+        const keyMatch = ITEM_KEY_RE.exec(key)
+        const knownIndex = keyMatch ? Number(keyMatch[2]) : null
+        const listKey = keyMatch ? keyMatch[1] : key
+        /* ① 精细框选：解析 items.N.field 精确路径（传点击 Y，per-item 元素
+           子元素 pointer-events:none 时按坐标定位到 name/level 文本） */
+        const precise = resolveListItemPath(e.target, el, moduleId, listKey, knownIndex, e.clientY)
+        if (precise) {
+          selectElement(moduleId, precise.path)
+          setSelectionEl(precise.el || e.target)
+          return
+        }
+        /* ② per-item 元素（气泡 span，key=items.<N>）：整体选中该条目 */
+        if (knownIndex != null) {
+          selectElement(moduleId, key)
+          setSelectionEl(el)
+          return
+        }
+        /* ③ 容器级列表回退：整条选中（容器 key + itemIndex） */
+        const itemEl = findItemElement(e.target, el)
+        if (itemEl) {
+          const itemIndex = Array.prototype.indexOf.call(el.children, itemEl)
+          selectElement(moduleId, key, null, itemIndex)
+          setSelectionEl(itemEl)
+          return
+        }
+      }
+      /* 普通可编辑元素：直接选中 */
       selectElement(moduleId, key)
       setSelectionEl(el)
     }
@@ -125,6 +172,9 @@ export const vEditable = {
       if (e.button !== 0) return
       /* 不劫持链接/表单等交互子元素（仍可点击选中，但不拖拽） */
       if (e.target.closest('a, button, input, textarea, select')) return
+      /* 阻止冒泡：嵌套可编辑元素（如列表容器 + 列表项）都挂 v-editable 时，
+         只让最内层开启拖拽，避免容器与条目同时 startDrag 打架。 */
+      e.stopPropagation()
       e.preventDefault()
       startDrag(e)
     }

@@ -8,7 +8,7 @@
  *   - 通用递归编辑器 ContentField（读写 useContent() 的 <命名空间>）
  * 所有改动直接写全局 store → 主区实时预览。
  */
-import { computed, watch } from 'vue'
+import { computed, watch, onBeforeUnmount } from 'vue'
 import { useTemplates } from '@/composables/useTemplates'
 import { useVersion } from '@/composables/useVersion'
 import { useI18n } from '@/i18n'
@@ -21,7 +21,7 @@ const { version } = useVersion()
 const { lang } = useI18n()
 const { getTemplateModules } = useTemplates()
 const { selectedModuleId, selectModule } = useConsole()
-const { selectModule: selectInSelection, scrollToSelection } = useSelection()
+const { selection, selectModule: selectInSelection, scrollToSelection } = useSelection()
 
 /* ---------- 当前模板的全部模块（含禁用，供选择与编辑） ---------- */
 const allModules = computed(() => getTemplateModules(version.value))
@@ -68,6 +68,62 @@ const configHint = {
   zh: '动画/字号/强调/摆放/变体 → 左侧「模块配置」浮窗',
   en: 'Animation / scale / emphasize / layout / variant → floating "Module config"'
 }
+
+/* ================= 点元素 → 控制台自动定位 + 呼吸闪烁（需求 4） =================
+   页面点元素 → useSelection 选中（moduleId + elementKey）→ 这里把 ContentField
+   对应输入框滚动到面板可视区（居中）+ 触发 .flash-hint 呼吸闪烁（闪 2 下、
+   柔和低亮 cyan）+ 行高亮（isSelected 由 ContentField 响应式维护）。
+   - ContentField 每个输入框带 data-content-path=完整内容路径；完整路径 =
+     内容命名空间（nsOf，副本用基础类型）+ '.' + elementKey。
+   - 控制台选中模块/切 tab 是异步的（ConsolePanel watch → consoleSelectedModuleId
+     → 本页 ContentField 重渲染），所以用重试轮询直到输入框出现。 */
+let jumpTimer = null
+let jumpAttempts = 0
+
+function scrollInputIntoView(input) {
+  /* 只滚面板内容区（.console-panel__main），不滚动页面主区 */
+  const scroller = input.closest('.console-panel__main')
+  if (!scroller || typeof scroller.scrollTo !== 'function') {
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return
+  }
+  const ir = input.getBoundingClientRect()
+  const sr = scroller.getBoundingClientRect()
+  const top = scroller.scrollTop + (ir.top - sr.top) - scroller.clientHeight / 2 + ir.height / 2
+  scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+}
+
+function jumpToSelection() {
+  const sel = selection.value
+  if (!sel || sel.kind !== 'element' || !sel.moduleId || !sel.elementKey) return
+  const m = allModules.value.find((x) => x.id === sel.moduleId)
+  if (!m) return
+  const fullPath = `${nsOf(m)}.${sel.elementKey}`
+  const safePath = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(fullPath) : fullPath
+
+  clearTimeout(jumpTimer)
+  jumpAttempts = 0
+  const attempt = () => {
+    const input = document.querySelector(`.cf__input[data-content-path="${safePath}"]`)
+    if (input) {
+      scrollInputIntoView(input)
+      /* 呼吸闪烁：移除类 + 强制 reflow → 重放动画（同字段再次点选也能重闪） */
+      input.classList.remove('flash-hint')
+      void input.offsetWidth
+      input.classList.add('flash-hint')
+    } else if (jumpAttempts++ < 30) {
+      jumpTimer = setTimeout(attempt, 60)
+    }
+  }
+  attempt()
+}
+
+watch(
+  () => selection.value?.moduleId + '|' + selection.value?.elementKey,
+  jumpToSelection,
+  { flush: 'post' }
+)
+onBeforeUnmount(() => { clearTimeout(jumpTimer) })
 </script>
 
 <template>

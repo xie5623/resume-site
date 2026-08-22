@@ -18,6 +18,7 @@ import { lang } from '@/i18n'
 import { getContent, setContent, replaceContentState } from '@/content/useContent'
 import { replaceTemplatesState } from '@/composables/useTemplates'
 import { replaceLayoutState } from '@/composables/useLayout'
+import { replaceElementStyleState } from '@/composables/useElementStyle'
 import { capture, push } from '@/composables/useHistory'
 
 /** 就地编辑状态（响应式，InlineEdit.vue 渲染用） */
@@ -50,11 +51,12 @@ const EMPTY = {
 let pendingSnap = null
 let dirty = false
 
-/** 恢复一份快照到三个 store（撤销/取消共用，与 useHistory 同款） */
+/** 恢复一份快照到四个 store（撤销/取消共用，与 useHistory 同款） */
 function restoreSnapshot(snap) {
   if (snap?.content != null) replaceContentState(snap.content)
   if (snap?.templates != null) replaceTemplatesState(snap.templates)
   if (snap?.layout != null) replaceLayoutState(snap.layout)
+  if (snap?.elementStyle != null) replaceElementStyleState(snap.elementStyle)
 }
 
 /**

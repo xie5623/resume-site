@@ -223,7 +223,9 @@ const T = (key) => get(version.value, props.lang, `hero.${key}`)  // 命名空�
 | `useI18n()` | `i18n/index.js` | 语言 + `t()` | `resume-site.lang` |
 | `useSelection()` | `composables/useSelection.js` | 全局选中态（模块/元素，双向联动基础） | —（会话态） |
 | `useLayout()` | `composables/useLayout.js` | 拖拽摆放元素位置 + 开关（自动适配） | `resume-site.layout` |
-| `useHistory()` | `composables/useHistory.js` | 撤销/重做（内容+模板+位置统一快照栈） | —（会话态） |
+| `useElementStyle()` | `composables/useElementStyle.js` | 元素级样式补丁（fontScale/animation/textAnim/emphasize/size，三层回退） | `resume-site.element-style` |
+| `useClipboard()` | `composables/useClipboard.js` | 元素复制/粘贴/克隆剪贴板（copyElement/pasteElement/pasteAsNewModule） | —（会话态） |
+| `useHistory()` | `composables/useHistory.js` | 撤销/重做（内容+模板+位置+元素级样式统一快照栈） | —（会话态） |
 | `useEditableRegistry()` | `composables/useEditableRegistry.js` | 可编辑元素注册表（模块挂载时注册） | —（组件生命周期） |
 
 核心四者（theme/version/templates/content）独立、可任意组合：App.vue 只做装配
@@ -242,6 +244,9 @@ const T = (key) => get(version.value, props.lang, `hero.${key}`)  // 命名空�
 | 换文字动画 | `updateModule(tpl, moduleId, { textAnim })`；可选值见 `ALLOWED_TEXT_ANIMS` |
 | 调字号 | `updateModule(tpl, moduleId, { fontScale })`（0.8~1.6，见 `FONT_SCALE_RANGE`） |
 | 强调 | `updateModule(tpl, moduleId, { emphasize })` |
+| 元素级字号/强调/大小 | `useElementStyle().setElementStyle(moduleId, key, { fontScale / emphasize / size })`；读取 `resolveElementStyle(moduleId, key, moduleCfg)`（三层回退，见 §13） |
+| 元素复制 | `useClipboard().copyElement(moduleId, key, { itemIndex })`（标量或列表条目） |
+| 元素粘贴 | `useClipboard().pasteElement(moduleId, { targetIndex })`；撤销走 `historyPasteElement`（见 §13） |
 | 增/删模块 | `addModule(tpl, cfg)` / `removeModule(tpl, id)`（可用 id 见 `MODULE_IDS`） |
 | 排序模块 | `moveModule(tpl, fromIdx, toIdx)`（或 `setTemplateModules` 整体替换） |
 | 开关模块 | `toggleModule(tpl, id, enabled)` |
@@ -289,9 +294,19 @@ npm run build    # 产物 → dist/
 - [x] 主题：浅色极简 / 暗金奢华 / 赛博渐变 + ThemePicker 切换（theme-dev T2）
 - [x] 嵌入式可收起控制台：编辑文字/换动画/调字号/增删排序模块/切主题（console-dev）
 - [x] 编辑器地基：useHistory 撤销/重做 + useSelection 选中 + useLayout 位置 + useEditableRegistry 注册表（architect T1）
+- [x] DEVICE 维度：useDevice + 模板/内容双端拆分 + 内容同步策略（architect，见 §12）
+- [x] 编辑器数据模型层：元素级配置 + 复制粘贴/克隆 + 气泡图数据契约 + 文档（architect t1，见 §13/§14/§15）
+- [ ] 右侧模块区整体展开/收缩 + 展开显示模块全名（需求 1，console-dev）
+- [ ] 左侧模块配置浮窗改作用于当前选中元素（需求 2 交互层，消费 useElementStyle）
+- [ ] 四套真正不同风格的主题（需求 3，theme-dev）
+- [ ] 点元素 → 控制台自动跳转 + 呼吸闪烁提醒（需求 4，console/preview-dev）
+- [ ] 精细框选（需求 5，module-builder）
+- [x] 元素复制/粘贴 UI + 拖拽摆放 + 可调整大小交互（需求 6 交互层，interaction-dev t5，见 §16）
+- [ ] 专业技能气泡图交互：可调大小/材质/冒泡动画（需求 7 交互层，数据契约已定见 §14）
+- [x] 创意工坊入口（需求 8，仅入口，功能后置，interaction-dev t5，见 §15）
+- [ ] 更新项目文档（需求 9，本文档 §13–§15 已记录数据层）
 - [ ] 滚动长页 ⇄ 翻页演示双形态切换（mode-dev）
 - [ ] 导出单文件 HTML
-- [x] DEVICE 维度：useDevice + 模板/内容双端拆分 + 内容同步策略（architect，见 §12）
 - [ ] DEVICE 维度 UI：桌面/手机视口切换 + 双端差异/覆盖展示（console/preview-dev）
 
 ---
@@ -304,7 +319,8 @@ npm run build    # 产物 → dist/
 
 ### 11.1 撤销/重做内核 `useHistory()`
 
-统一快照栈，对 **内容 + 模板编排 + 元素位置** 三层做一次深拷贝快照：
+统一快照栈，对 **内容 + 模板编排 + 元素位置 + 元素级样式** 做一次深拷贝快照
+（元素级样式见 §13.1；快照形状 `{ content, templates, layout, elementStyle }`）：
 
 ```js
 import { useHistory } from '@/composables/useHistory'
@@ -503,11 +519,11 @@ resetDeviceContent(version.value)         // 清空手机覆盖 → 恢复跟随
 ### 12.5 手机版专属编排 + 模块双端布局（module-builder T3）
 
 **① 手机版模板编排**（`site.config.js` 的 `VERSIONS[*].mobile`，运行时走 useTemplates）：
-- senior.mobile：精简掉 portfolio（移动端少滚动）；skills 用**标签云 variant c**（少占高度）、
-  experience 用**卡片列表 variant c**（比时间线紧凑）、hero `fontScale:0.92` 更紧凑；
-  动效全 fade-* 系、hero `textAnim:'none'`（轻量、省电）。
+- senior.mobile：精简掉 portfolio（移动端少滚动）；skills 用**气泡图 variant d**
+  （`--bubble-scale` 整体缩放，紧凑省高度）、experience 用**卡片列表 variant c**（比时间线紧凑）、
+  hero `fontScale:0.92` 更紧凑；动效全 fade-* 系、hero `textAnim:'none'`（轻量、省电）。
 - graduate.mobile：模块集与桌面一致，重动效（zoom-in/letter-*）换 fade-up，
-  hero 去文字动画 + fontScale 0.92，skills/experience 同样换 variant c。
+  hero 去文字动画 + fontScale 0.92，skills 用气泡图 variant d、experience 用 variant c。
 - 每套 mobile 的 variant/fontScale 与 desktop 完全独立（双端可不同布局）。
 
 **② 模块双端布局机制**（新增 `composables/useDeviceLayout.js`）：
@@ -531,3 +547,171 @@ const { deviceCls } = useDeviceLayout()   // 'is-mobile' | 'is-desktop'（永远
 的缺省设备由「手动 device」改为 **effectiveDevice**；App.vue 的
 `enabledModules(version, effectiveDevice)` 显式传设备。效果：**真实手机无需手动切换即
 自动渲染手机版模板 + 内容**；手动切换（console 设备切换器）优先。
+
+---
+
+## 13. 编辑器数据模型层：元素级配置 + 复制粘贴/克隆（architect t1）
+
+> 在 §11 编辑器地基之上，为「编辑器体验大升级」新增两个叠加 store：
+> `useElementStyle`（元素级样式补丁）与 `useClipboard`（复制/粘贴/克隆）。
+> 两者都不侵入核心三层与动画系统；依赖方向：
+> `useHistory → { useElementStyle, useClipboard } → useContent / useTemplates / useLayout`。
+
+### 13.1 元素级配置 `useElementStyle()`（需求 2）
+
+**为什么**：当前 `useTemplates` 是模块级配置（fontScale/animation/textAnim/emphasize 整块生效）。
+需求 2 要求「每个选中元素可独立配置」——左侧 ModuleConfigBar（console-dev 改）编辑**当前选中元素**，
+读到元素级优先、回退模块级、回退默认。
+
+```js
+import { useElementStyle } from '@/composables/useElementStyle'
+const {
+  getElementStyle, setElementStyle, clearElementStyle,
+  resolveElementStyle, shiftItemStyles, resetElementStyles
+} = useElementStyle()
+
+setElementStyle('skills', 'title', { fontScale: 1.2, emphasize: true }) // 元素级补丁（合并写）
+getElementStyle('skills', 'title')          // → { fontScale:1.2, emphasize:true } | null
+clearElementStyle('skills', 'title')        // 移除 → 跟随模块级
+resolveElementStyle('skills', 'title', moduleCfg)
+// → { fontScale, animation, textAnim, emphasize, size }（元素级 → 模块级(base) → 默认 三层回退）
+resetElementStyles()                        // 全部清空 + 清持久化（resume-site.element-style）
+```
+
+- **状态形状**：`{ moduleId: { elementKey: { fontScale, animation, textAnim, emphasize, size } } }`。
+  elementKey 与 useEditableRegistry / useLayout / useSelection 一致；
+  列表条目用下标式键 `items.<index>`（如 `items.3`）。
+- **size 字段两种消费**：
+  - 通用元素（需求 6「可调整大小」）：`{ w, h, unit:'px'|'%' }` → `v-element-style` 指令写
+    `--el-w / --el-h`，T2/T3 交互层消费；
+  - 气泡图（需求 7「每气泡可调大小」）：`number` = 直径 px → `useBubble.resolveBubbleSize` 消费。
+- **持久化 key**：`resume-site.element-style`。
+- **落地指令**：`v-element-style`（main.js 已注册全局）把元素级补丁应用到 DOM——
+  fontScale 按「父级 `--fs-scale` ×（元素级 ÷ 模块级）」叠加、emphasize 加 `text-emphasize` 类、
+  size 写 `--el-w/--el-h`。无补丁时零改动（安全叠加）。T2/T3 可让模块元素挂上该指令即可生效。
+- **DEVICE 维度**：元素级样式属于**设计层**，desktop/mobile **共享同一份**（两端通用），
+  不在 device 维度拆分——两端排版风格由同一套设计层样式统一；若未来要双端独立可再扩展。
+
+### 13.2 复制/粘贴/克隆 `useClipboard()`（需求 6）
+
+```js
+import { useClipboard } from '@/composables/useClipboard'
+const { copyElement, pasteElement, pasteAsNewModule, hasClipboard, clearClipboard } = useClipboard()
+
+copyElement('skills', 'items', { itemIndex: 3 }) // 复制第 4 个气泡（数据 + 元素样式）
+pasteElement('skills', { targetIndex: 4 })       // 插入副本（数据 + 样式，下标后移）→ true
+pasteElement('skills')                            // 缺省 targetIndex = 追加到列表尾
+pasteAsNewModule()                               // createModuleInstance 生成同类型新实例（skills-2）
+```
+
+- **剪贴板形状**：`{ kind:'element', moduleId, namespace, key, itemIndex|null, data, style|null, copiedAt }`。
+  - `copyElement(moduleId, key, { itemIndex })`：标量元素复制文本值；列表条目复制单条数据 + 样式。
+  - `pasteElement(moduleId, { targetIndex })`：列表条目 → 数组插入副本（`useContent.setContent` 整数组写，
+    `shiftItemStyles` 平移下标样式后复制源样式到新位）；标量 → 覆盖目标模块同 key 文本。
+  - `pasteAsNewModule()`：用 `useTemplates.createModuleInstance` 生成同类型新实例并 `addModule`
+    （副本共享内容命名空间，沿用现有克隆模块机制）。
+- **命名空间**：副本实例（skills-2）用基础类型（skills）读内容，与 ModuleEditorTab `nsOf` 一致。
+- **剪贴板为会话态**（不持久化）；刷新即空。
+- **与 useHistory 协作**：粘贴/克隆统一走 `historyPasteElement` / `historyPasteAsNewModule`
+  （`withHistory` 包一层）→ 内容 + 元素样式 + 模板编排一步撤销。快照 `capture()` 现含四层
+  `{ content, templates, layout, elementStyle }`，undo/redo 天然覆盖元素级样式。
+- **下标样式平移**：`shiftItemStyles(moduleId, listKey, fromIndex, delta)` 在列表插入/删除后
+  平移 `items.<n>` 式样式，保证「条目复制粘贴 / 增删」后每气泡样式不错位。
+
+---
+
+## 14. 专业技能气泡图数据契约（需求 7 · SkillsModule variant 'd'）
+
+> 给 T7 交互层（气泡大小可调 / 材质 / 冒泡动画）与 mobile 端同步用的**唯一数据契约**。
+
+- **变体**：`ALLOWED_VARIANTS` 已加 `'d'`；SkillsModule `variant === 'd'` 渲染气泡图。
+- **数据**：仍读内容层 `skills.items = [{ name, level }]`（level 0~100），不新增内容结构。
+- **气泡直径（默认）**：`useBubble.bubbleSizeForLevel(level)`——线性映射：
+  `level 50 → BUBBLE_SIZE.min(48px)`，`level 95 → BUBBLE_SIZE.max(132px)`，夹取。
+- **每气泡可独立覆盖**：元素级样式键 `items.<index>` 的 `size` 字段优先：
+  ```js
+  import { resolveBubbleSize, bubbleSizeForLevel } from '@/composables/useBubble'
+  setElementStyle('skills', 'items.3', { size: 96 })   // 覆盖第 4 个气泡直径为 96px
+  resolveBubbleSize('skills', 3, 88)                    // → 96（覆盖优先）
+  resolveBubbleSize('skills', 5, 88)                    // → bubbleSizeForLevel(88)（默认映射）
+  ```
+- **落地**：SkillsModule d 分支内联 `--d: <px>` + 容器 `--bubble-scale`（手机端 0.78 整体缩放），
+  玻璃材质 + 冒泡浮动动画（`translate` 独立于 `transform`，尊重 prefers-reduced-motion）。
+- **局限（与 DEVICE 内容覆盖一致）**：下标式键在列表**增删/重排**后可能错位；
+  复制粘贴会自动平移下标样式（§13.2），手改 items 顺序时每气泡样式需人工对齐或清空重建。
+
+---
+
+## 15. Roadmap / 后续规划（本次 9 项需求 + 创意工坊）
+
+> 本次「编辑器体验大升级」9 项需求分工：数据模型层（本文档 §13–§14）已完成；
+> 交互层由 console-dev / module-builder / preview-dev / theme-dev 分工推进。
+
+| # | 需求 | 状态 | 数据/契约 |
+|---|------|------|-----------|
+| 1 | 右侧模块区整体展开/收缩 + 显示模块全名 | 待做（console-dev） | useTemplates 模块编排 |
+| 2 | 左侧模块配置浮窗改作用于当前选中元素 | 数据层完成 / 交互待做 | **useElementStyle**（§13.1） |
+| 3 | 四套真正不同风格的主题 | 待做（theme-dev） | themes/useTheme |
+| 4 | 点元素 → 控制台跳转 + 呼吸闪烁提醒 | 待做 | useSelection + useConsole |
+| 5 | 精细框选（任何可输入字精确可选中） | 待做（module-builder） | useEditableRegistry + editable 指令 |
+| 6 | 元素复制/粘贴 + 拖拽摆放 + 可调整大小 | **交互已完成（interaction-dev t5）** | **useClipboard** + `size` 字段（§13.2 / §16） |
+| 7 | 专业技能气泡图（大小/材质/冒泡动画/同步手机端） | 数据层完成 / 交互待做 | **useBubble**（§14）+ variant 'd' |
+| 8 | 创意工坊入口（仅入口，功能后置） | **入口已完成（interaction-dev t5）** | 见下方 Roadmap |
+| 9 | 更新项目文档 | 数据层已记录（§13–§15） | 本文件 + README-配置说明 |
+
+### 创意工坊入口（需求 8 · 仅入口，功能后置）
+
+- **现状（interaction-dev t5 已落地）**：入口在控制台「全局」tab 的「创意工坊」卡片
+  （🧪 图标 + 双语文案 + 渐变按钮）。点击展开占位面板：显示
+  「创意工坊 · 敬请期待」徽标 + 一句话说明 + 未来规划（模板市场 / 上传·审核·共享 / 版本管理）。
+  **不实现任何上传/下载/社区逻辑**（仅入口 UI）。持久化只记住展开状态（会话态，收起即隐藏）。
+- **未来社区模板上传架构设想**（写入此处，供后续立项）：
+  - **模板即数据**：模板 = `TEMPLATE`（模块编排）+ `THEME`（主题 cssVars/extraCss）+ 缩略图，
+    与现有三层分离天然对齐——上传一个模板包 = 三个 JSON/文本的归档（zip）。
+  - **Schema 校验**：沿用 `validateModuleConfig` 扩展 `validateTemplateBundle`（模块 id /
+    animation / textAnim / variant / fontScale / 主题 cssVars 键都在允许集内），
+    非法模板拒收并给出逐条错误（防 XSS：额外 HTML/CSS 需白名单清洗）。
+  - **导入流程**：下载 zip → 解析 → 校验 → 注入 `useTemplates`（新版本条目）+ `useTheme`
+    （新主题条目）+ 缩略图 → 版本/主题切换器出现新选项 → 一键应用。
+  - **安全边界**：模板包是**数据**不是代码（不执行 JS）；CSS 走 tokens 变量 + 白名单选择器；
+    未来若支持自定义组件代码，须走独立的沙箱/审核流程（本期明确排除）。
+  - **多语言**：模板包内 zh/en 文案成对，缺失用默认语言兜底。
+
+---
+
+## 16. 元素复制/粘贴 + 拖拽大小调整交互层（需求 6 · interaction-dev t5）
+
+> 消费 §13.2 的 `useClipboard` 与 §13.1 的 `size` 字段，把「复制 / 粘贴 / 缩放手柄」
+> 接到选中态（useSelection）上。与气泡图（§14）共用同一份数据契约。
+
+### 16.1 复制 / 粘贴
+
+- **选中态携带条目下标**：`useSelection.selection` 新增 `itemIndex`（列表内点击条目时写入）。
+  `v-editable` 对 `type='list'` 元素在点击时解析「被点条目在容器的直接子项索引」
+  （`findItemElement` 上溯到 `container.children`），并让高亮框精确框住该条目。
+- **动作编排 `useEditorActions.js`**（新）：
+  - `copySelection()`：模块选中 → `copyModule`；元素选中 → `copyElement(moduleId, key, { itemIndex })`
+    （标量复制文本、列表条目复制单条数据 + 元素样式）。
+  - `pasteSelection()`：剪贴板为模块 → `historyPasteAsNewModule()`（skills-2 副本实例，自动选中）；
+    为元素 → `historyPasteElement(moduleId, { targetIndex })`（选中条目插其后 / 列表容器或模块追加到 items 尾）。
+  - 粘贴统一走 history → **一个可撤销单元**（内容 + 元素样式 + 模板编排一步 undo）。
+- **入口（三处）**：
+  1. **选中高亮框工具条**（SelectionBox）：选中任意元素/模块后出现在框下方，⧉ 复制 / 📋 粘贴
+     （粘贴按钮随剪贴板有无禁用），带一次性状态提示。
+  2. **全局快捷键**：编辑态 `Ctrl+C` / `Ctrl+V`（焦点在输入框/可编辑区时不劫持，让浏览器原生处理）。
+  3. **模块配置浮窗**（ModuleConfigBar）：`复制本模块` / `粘贴为副本模块`（仅剪贴板为模块时可用）。
+
+### 16.2 拖拽大小调整（缩放手柄）
+
+- **入口**：元素级选中时，高亮框右下角出现缩放手柄（`pointer-events:auto`，nwse-resize 光标）。
+- **写什么（元素级 size，持久化 + 实时预览 + 可撤销）**：
+  - **技能气泡**（skills variant d 的列表条目）：直径 px（number size）→ 写
+    `items.<index>`，`resolveBubbleSize` 消费 → `--d` 实时生效。
+  - **通用元素**（文字块/模块标题等）：`{ w, unit:'px' }` → `v-element-style` 落地 `--el-w`
+    （高度自动回流，不裁剪文字）。
+- **交互**：pointer 拖拽实时 `setElementStyle`（预览）；拖前 `capture()` 快照、松手 `push()` 入栈
+  = 整个拖拽一步撤销。与字号滑块相同的「拖动中不入栈」模式。
+- **消费落地**：8 个模块标题 h2（About/Experience/Projects/Skills + Certificates/Contact/Education/Portfolio）
+  已挂 `v-element-style="'title'"`（无补丁时零改动，安全叠加）。
+- **协作**：气泡副本/粘贴由 §13.2 自动平移下标样式；缩放手柄与 T7 气泡交互共享
+  `items.<index>.size` 字段，互不冲突。

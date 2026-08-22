@@ -13,10 +13,12 @@
  * 所有读写直接走 useContent 全局响应式 store：输入即写、页面即变。
  * 数据契约：get(version, lang, path) / setContent(version, lang, path, v)。
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useContent } from '@/content/useContent'
 import { version } from '@/composables/useVersion'
 import { lang } from '@/i18n'
+import { useSelection } from '@/composables/useSelection'
+import { getTemplateModules } from '@/composables/useTemplates'
 import { capture, push, withHistory } from '@/composables/useHistory'
 
 const props = defineProps({
@@ -26,6 +28,19 @@ const props = defineProps({
 })
 
 const { get, setContent } = useContent()
+const { selection } = useSelection()
+
+/* ---------- 是否当前选中字段（需求 4：ContentField 高亮对应项） ----------
+   选中元素（moduleId + elementKey）→ 内容命名空间 + '.' + elementKey =
+   完整内容路径；与本字段 props.path 相等即该输入框被选中 → 行高亮。 */
+const isSelected = computed(() => {
+  const sel = selection.value
+  if (!sel || sel.kind !== 'element' || !sel.moduleId || !sel.elementKey) return false
+  const m = getTemplateModules(version.value).find((x) => x.id === sel.moduleId)
+  if (!m) return false
+  const ns = m.type ?? m.id
+  return `${ns}.${sel.elementKey}` === props.path
+})
 
 /* ---------- 读取当前值（带回退链，随 store 响应） ---------- */
 const value = () => get(version.value, lang.value, props.path)
@@ -224,10 +239,11 @@ function isIndexLeaf(p) {
 
     <template v-else-if="typeof value() === 'number'">
       <!-- ===== 数字 ===== -->
-      <label class="cf__row">
+      <label class="cf__row" :class="{ 'cf__row--selected': isSelected }">
         <span class="cf__label">{{ label || labelFor(path.split('.').pop()) }}</span>
         <input
           class="glass-input cf__input cf__input--num"
+          :data-content-path="path"
           type="number"
           :value="value()"
           @focus="beginEdit"
@@ -239,10 +255,11 @@ function isIndexLeaf(p) {
 
     <template v-else>
       <!-- ===== 字符串 ===== -->
-      <label class="cf__row" :class="{ 'cf__row--indent': isIndexLeaf(path) }">
+      <label class="cf__row" :class="{ 'cf__row--indent': isIndexLeaf(path), 'cf__row--selected': isSelected }">
         <span class="cf__label">{{ label || labelFor(path.split('.').pop()) }}</span>
         <input
           class="glass-input cf__input"
+          :data-content-path="path"
           type="text"
           :value="value() ?? ''"
           @focus="beginEdit"
@@ -380,5 +397,28 @@ function isIndexLeaf(p) {
 .cf__switch--on .cf__switch-knob {
   transform: translateX(18px);
   background: var(--on-accent);
+}
+
+/* ---------- 选中字段高亮（需求 4：点页面元素 → 控制台定位对应输入框） ---------- */
+.cf__row--selected {
+  border-radius: var(--radius-sm);
+  background: rgba(55, 217, 242, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(55, 217, 242, 0.3);
+}
+
+/* ---------- 呼吸闪烁提示（需求 4：闪 2 下、低亮度柔和 cyan） ---------- */
+@keyframes cf-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(55, 217, 242, 0); border-color: var(--glass-border); }
+  20%      { box-shadow: 0 0 0 3px rgba(55, 217, 242, 0.22); border-color: rgba(55, 217, 242, 0.55); }
+  40%      { box-shadow: 0 0 0 0 rgba(55, 217, 242, 0); border-color: var(--glass-border); }
+  60%      { box-shadow: 0 0 0 3px rgba(55, 217, 242, 0.22); border-color: rgba(55, 217, 242, 0.55); }
+  80%      { box-shadow: 0 0 0 0 rgba(55, 217, 242, 0); border-color: var(--glass-border); }
+}
+.cf__input.flash-hint {
+  animation: cf-flash 1.15s ease-out 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf__input.flash-hint { animation: none; }
 }
 </style>

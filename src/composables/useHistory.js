@@ -2,10 +2,10 @@
    composables/useHistory.js — 撤销/重做内核
    ------------------------------------------------------------
    作用：对「内容(useContent) + 模板编排(useTemplates) + 元素位置
-   (useLayout)」三层做统一快照栈，任何编辑器写操作都可撤销/重做
-   （含位置，位置即 useLayout 的状态）。
-   - 快照 = 三层当前完整状态的一次深拷贝：
-       { content, templates, layout }
+   (useLayout) + 元素级样式(useElementStyle)」做统一快照栈，任何
+   编辑器写操作都可撤销/重做（含位置与元素级样式）。
+   - 快照 = 四层当前完整状态的一次深拷贝：
+       { content, templates, layout, elementStyle }
      （DEVICE 维度已包含：content/templates 的快照含 desktop/mobile 分支，
        撤销/重做天然覆盖设备维度。）
    - 每次可撤销写操作：执行前捕获快照，执行成功后入栈
@@ -23,7 +23,7 @@
      canUndo / canRedo            → computed<boolean>（按钮禁用态）
      push(snapshot)               → 手动入栈一个快照（capture() 生成）
      withHistory(fn, label?)      → 历史事务：捕获→执行→入栈
-     capture()                    → 生成当前三层快照（深拷贝）
+     capture()                    → 生成当前四层快照（深拷贝）
      clearHistory()               → 清空两栈
      // 历史包装的 setter：每次写操作自动进入历史
      historySetContent(tpl, lang, key, value)
@@ -34,6 +34,12 @@
      historySetContentForDevice(tpl, device, lang, key, value) // 显式设备写内容
      historyUpdateForDevice(versionId, device, fn)             // 显式设备改模板编排
      historyResetDeviceContent(versionId)                      // 清空手机内容覆盖
+     // 元素级样式（需求 2）与复制粘贴（需求 6）
+     historySetElementStyle(moduleId, elementKey, patch)
+     historyClearElementStyle(moduleId, elementKey)
+     historyPasteElement(moduleId, opts)      // 粘贴（列表副本一步撤销）
+     historyPasteAsNewModule()                // 生成同类型新实例（一步撤销）
+     historyResetElementStyles()
      bindHistoryShortcuts() / unbindHistoryShortcuts()
    ============================================================ */
 
@@ -53,6 +59,14 @@ import {
   resetLayout,
   replaceLayoutState
 } from '@/composables/useLayout'
+import {
+  elementStyle,
+  setElementStyle,
+  clearElementStyle,
+  resetElementStyles,
+  replaceElementStyleState
+} from '@/composables/useElementStyle'
+import { pasteElement, pasteAsNewModule } from '@/composables/useClipboard'
 
 /** 撤销栈深度上限 */
 export const MAX_HISTORY = 50
@@ -67,12 +81,13 @@ function cloneDeep(v) {
 }
 
 /* ---------- 快照 ---------- */
-/** 生成当前三层状态快照（深拷贝，入栈/比较用） */
+/** 生成当前四层状态快照（深拷贝，入栈/比较用） */
 export function capture() {
   return {
     content: cloneDeep(content.value),
     templates: cloneDeep(templates.value),
-    layout: cloneDeep(layout.value)
+    layout: cloneDeep(layout.value),
+    elementStyle: cloneDeep(elementStyle.value)
   }
 }
 
@@ -88,11 +103,12 @@ function pushUndo(snapshot) {
   if (undoStack.value.length > MAX_HISTORY) undoStack.value.shift()
 }
 
-/** 恢复一个快照到三个 store（写回 + 持久化） */
+/** 恢复一个快照到四个 store（写回 + 持久化） */
 function restore(snapshot) {
   if (snapshot?.content != null) replaceContentState(snapshot.content)
   if (snapshot?.templates != null) replaceTemplatesState(snapshot.templates)
   if (snapshot?.layout != null) replaceLayoutState(snapshot.layout)
+  if (snapshot?.elementStyle != null) replaceElementStyleState(snapshot.elementStyle)
 }
 
 /* ---------- 核心操作 ---------- */
@@ -185,6 +201,35 @@ export function historyResetLayout() {
   withHistory(() => resetLayout())
 }
 
+/* ================= 元素级样式（需求 2）+ 复制粘贴（需求 6） =================
+   元素级样式/粘贴都会改 content 或 elementStyle，包进 withHistory 即
+   一个可撤销单元（快照含四层，undo 一步回操作前）。 */
+
+/** 设置元素级样式补丁（历史包装） */
+export function historySetElementStyle(moduleId, elementKey, patch) {
+  return withHistory(() => setElementStyle(moduleId, elementKey, patch))
+}
+
+/** 清除元素级样式补丁（历史包装） */
+export function historyClearElementStyle(moduleId, elementKey) {
+  return withHistory(() => clearElementStyle(moduleId, elementKey))
+}
+
+/** 粘贴元素（列表条目→插入副本并平移样式 / 标量→覆盖文本；一步撤销） */
+export function historyPasteElement(moduleId, opts) {
+  return withHistory(() => pasteElement(moduleId, opts))
+}
+
+/** 生成同类型新实例（createModuleInstance + addModule；一步撤销） */
+export function historyPasteAsNewModule() {
+  return withHistory(() => pasteAsNewModule())
+}
+
+/** 清空全部元素级样式（历史包装） */
+export function historyResetElementStyles() {
+  return withHistory(() => resetElementStyles())
+}
+
 /* ---------- 全局快捷键（Ctrl+Z / Ctrl+Shift+Z） ---------- */
 let bound = false
 
@@ -239,6 +284,11 @@ export function useHistory() {
     historyResetDeviceContent,
     historyResetTemplateModules,
     historyResetLayout,
+    historySetElementStyle,
+    historyClearElementStyle,
+    historyPasteElement,
+    historyPasteAsNewModule,
+    historyResetElementStyles,
     bindHistoryShortcuts,
     unbindHistoryShortcuts,
     MAX_HISTORY

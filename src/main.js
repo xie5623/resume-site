@@ -23,9 +23,16 @@ import '@/composables/useEditingMode'
 /* 编辑器：v-editable 可编辑元素指令（标记/选中/拖拽摆放） */
 import { vEditable } from '@/directives/editable'
 
+/* 编辑器：v-element-style 元素级样式指令（需求 2：fontScale/emphasize/size 落地） */
+import { vElementStyle } from '@/directives/elementStyle'
+
+/* 编辑器：复制/粘贴动作编排 + Ctrl+C / Ctrl+V 快捷键（需求 6，加载即绑定） */
+import '@/composables/useEditorActions'
+
 /* 同步文档标题（i18n 品牌名优先；版本品牌兜底——挂载后 App 会再跟随版本刷新） */
 document.title = t('common.brand') || getVersionBrand(DEFAULT_VERSION, 'zh')
 
 const app = createApp(App)
 app.directive('editable', vEditable)
+app.directive('element-style', vElementStyle)
 app.mount('#app')

@@ -58,7 +58,21 @@ const l = {
   template: { zh: '当前模板', en: 'Template' },
   templateHint: { zh: '不同模板 = 不同模块编排（内容/主题不受影响）', en: 'Template = module layout only' },
   restore: { zh: '恢复全部默认（内容 / 模块 / 主题）', en: 'Reset all (content / modules / theme)' },
-  restored: { zh: '已恢复默认', en: 'Restored to defaults' }
+  restored: { zh: '已恢复默认', en: 'Restored to defaults' },
+  workshop: { zh: '创意工坊', en: 'Creative Workshop' },
+  workshopHint: { zh: '上传 / 下载社区简历模板（即将上线）', en: 'Upload / download community templates (coming soon)' },
+  workshopOpen: { zh: '进入创意工坊', en: 'Open workshop' },
+  workshopClose: { zh: '收起', en: 'Close' },
+  workshopTitle: { zh: '创意工坊 · 敬请期待', en: 'Creative Workshop · Coming soon' },
+  workshopDesc: { zh: '未来可在这里上传你的模板，或下载社区分享的精美模板一键套用。', en: 'Soon you can share your templates and apply community-made ones with one click.' },
+  workshopRoadmap: { zh: '规划：模板市场 · 用户上传/审核/共享 · 模板版本管理', en: 'Planned: template marketplace · upload/review/share · versioning' },
+  workshopComing: { zh: '敬请期待', en: 'Coming soon' }
+}
+
+/* ---------- 创意工坊（需求 8 · 仅入口，功能后置） ---------- */
+const workshopOpen = ref(false)
+function toggleWorkshop() {
+  workshopOpen.value = !workshopOpen.value
 }
 
 function toggleLangNow() {
@@ -115,6 +129,26 @@ function toggleLangNow() {
           @click="setVersion(t.id)"
         >{{ t.name[lang] }}</button>
       </div>
+    </section>
+
+    <!-- ===== 创意工坊入口（需求 8 · 仅入口，功能后置） ===== -->
+    <section class="gl-tab__card glass">
+      <h4 class="gl-tab__title">{{ l.workshop[lang] }}</h4>
+      <p class="gl-tab__hint">{{ l.workshopHint[lang] }}</p>
+      <button type="button" class="gl-tab__workshop" @click="toggleWorkshop">
+        <span class="gl-tab__workshop-icon">🧪</span>
+        <span>{{ workshopOpen ? l.workshopClose[lang] : l.workshopOpen[lang] }}</span>
+      </button>
+
+      <!-- 占位面板：仅说明 + 敬请期待，无真实上传/下载 -->
+      <Transition name="ws">
+        <div v-if="workshopOpen" class="gl-tab__ws-panel">
+          <div class="gl-tab__ws-badge">{{ l.workshopComing[lang] }}</div>
+          <p class="gl-tab__ws-title">{{ l.workshopTitle[lang] }}</p>
+          <p class="gl-tab__ws-desc">{{ l.workshopDesc[lang] }}</p>
+          <p class="gl-tab__ws-road">{{ l.workshopRoadmap[lang] }}</p>
+        </div>
+      </Transition>
     </section>
 
     <!-- ===== 恢复默认 ===== -->
@@ -175,4 +209,59 @@ function toggleLangNow() {
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .gl-tab__restore:hover { color: var(--warning); border-color: var(--warning); }
+
+/* ================= 创意工坊入口（需求 8） ================= */
+.gl-tab__workshop {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--accent-gradient);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-glow, 0 0 18px rgba(55, 217, 242, 0.3));
+  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+}
+.gl-tab__workshop:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.gl-tab__workshop-icon { font-size: var(--fs-md); line-height: 1; }
+
+.gl-tab__ws-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--glass-border-hover);
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-strong);
+}
+.gl-tab__ws-badge {
+  align-self: flex-start;
+  padding: 2px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--on-accent);
+  background: var(--accent-gradient);
+  border-radius: var(--radius-pill);
+}
+.gl-tab__ws-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.gl-tab__ws-desc { font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.6; }
+.gl-tab__ws-road {
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+  opacity: 0.8;
+}
+
+/* 占位面板过渡 */
+.ws-enter-active, .ws-leave-active { transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out); }
+.ws-enter-from, .ws-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>

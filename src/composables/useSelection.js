@@ -13,7 +13,12 @@
        moduleId,                            // 模块 id
        elementId,                           // 元素 id（备用，如 DOM id）
        elementKey                           // 元素 key（可编辑注册表 / 布局位置用）
+       itemIndex                            // 列表条目下标（list 容器内点击条目时；否则 null）
      }
+   - itemIndex：需求 6「复制/粘贴/调整大小」需精确定位列表里的某一条
+     （如 skills.items[3]）。由 v-editable 点击 list 容器内条目时写入；
+     复制 → copyElement(moduleId, key, { itemIndex })；缩放手柄 →
+     写 items.<index> 的元素级 size。无条目点击时为 null（列表容器级）。
    - 不持久化：选中是会话态，刷新即清空。
    - 独立 store：不依赖 useConsole（console-dev 通过 watch 本 store
      或同时调用 selectModule 同步左侧面板，见 ARCHITECTURE §11）。
@@ -35,7 +40,8 @@ export const DEFAULT_SELECTION = {
   kind: null,
   moduleId: null,
   elementId: null,
-  elementKey: null
+  elementKey: null,
+  itemIndex: null
 }
 
 /** 全局选中态（不持久化） */
@@ -50,16 +56,23 @@ export function selectModule(moduleId) {
     kind: 'module',
     moduleId: moduleId ?? null,
     elementId: null,
-    elementKey: null
+    elementKey: null,
+    itemIndex: null
   }
 }
 
-export function selectElement(moduleId, elementKey, elementId) {
+/**
+ * selectElement(moduleId, elementKey, elementId, itemIndex) — 选中某模块内元素。
+ * - itemIndex：可选；列表元素（key='items'）内点击某条目时传其下标，
+ *   用于「复制单条 / 单条缩放手柄」（需求 6）；缺省 null = 容器级。
+ */
+export function selectElement(moduleId, elementKey, elementId, itemIndex) {
   selection.value = {
     kind: 'element',
     moduleId: moduleId ?? null,
     elementId: elementId ?? null,
-    elementKey: elementKey ?? null
+    elementKey: elementKey ?? null,
+    itemIndex: Number.isInteger(itemIndex) ? itemIndex : null
   }
 }
 
@@ -74,6 +87,7 @@ export const isElementSelected = computed(() => selection.value.kind === 'elemen
 export const selectedModuleId = computed(() => selection.value.moduleId)
 export const selectedElementKey = computed(() => selection.value.elementKey)
 export const selectedElementId = computed(() => selection.value.elementId)
+export const selectedItemIndex = computed(() => selection.value.itemIndex)
 
 /* ---------- 高亮框 / 定位 ---------- */
 /** 绑定当前选中元素对应的 DOM 元素（module-builder 选中元素时调用） */
@@ -125,7 +139,8 @@ export function useSelection() {
     isElementSelected,
     selectedModuleId,
     selectedElementKey,
-    selectedElementId
+    selectedElementId,
+    selectedItemIndex
   }
 }
 

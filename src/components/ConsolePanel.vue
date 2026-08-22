@@ -74,19 +74,22 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointerup', onResizeEnd)
 })
 
-/* ---------- 页面点选 → 面板/配置浮窗联动（需求 3 反向） ----------
+/* ---------- 页面点选 → 面板/配置浮窗联动（需求 3 反向 + 需求 4 跳转） ----------
    点页面元素（v-editable → selectElement）或模块 → 模块树高亮 + 配置跟随：
    - 同步 consoleSelectedModuleId（配置浮窗显示该模块）
-   - 若正在「编辑」页则跳到该模块内容；主题/形态/全局不打扰 */
+   - 选中【元素】→ 强制切到「编辑」页（需求 4：控制台自动定位到对应
+     输入框 + 呼吸闪烁，见 ModuleEditorTab.jumpToSelection）；
+     选中【模块】→ 若在 modules/editor 页则跳到编辑（不打扰主题/形态/全局）。 */
 watch(
-  () => selection.value?.moduleId,
-  (id) => {
-    if (!id) return
-    consoleSelectedModuleId.value = id
-    if (consoleTab.value === 'modules' || consoleTab.value === 'editor') {
+  () => selection.value,
+  (sel) => {
+    if (!sel || !sel.moduleId) return
+    consoleSelectedModuleId.value = sel.moduleId
+    if (sel.kind === 'element' || consoleTab.value === 'modules' || consoleTab.value === 'editor') {
       setConsoleTab('editor')
     }
-  }
+  },
+  { deep: true }
 )
 
 /* 标签页：编辑 / 主题 / 形态 / 全局 */

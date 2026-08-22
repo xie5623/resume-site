@@ -81,7 +81,7 @@ const STATS = [
       <!-- ======== 区块标题 ======== -->
       <header class="hm-about__head">
         <span class="hm-about__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
-        <h2 class="hm-about__title" :class="emphasizeClass" v-editable="ed('title')">
+        <h2 class="hm-about__title" :class="emphasizeClass" v-editable="ed('title')" v-element-style="'title'">
           <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-about__line"></span>

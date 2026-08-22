@@ -65,7 +65,7 @@ const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid-
       <!-- ======== 区块标题 ======== -->
       <header class="hm-proj__head">
         <span class="hm-proj__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
-        <h2 class="hm-proj__title" :class="emphasizeClass" v-editable="ed('title')">
+        <h2 class="hm-proj__title" :class="emphasizeClass" v-editable="ed('title')" v-element-style="'title'">
           <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-proj__line"></span>

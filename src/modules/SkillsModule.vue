@@ -1,10 +1,13 @@
 <script setup>
 /**
  * SkillsModule — 专业技能（id: skills）
- * 三种布局变体（config.variant 切换）：
+ * 四种布局变体（config.variant 切换）：
  *  - a：进度条列表（revealed 后宽度动画）
  *  - b：环形图网格（SVG stroke-dashoffset 动画）
  *  - c：标签云（按熟练度加权字号）
+ *  - d：气泡图（需求 7）——气泡大小按 level 映射 + 元素级样式
+ *       `items.<index>.size` 覆盖（useBubble.resolveBubbleSize），
+ *       玻璃材质 + 冒泡浮动动画，手机端按 --bubble-scale 缩放。
  *
  * 内容：从内容层 useContent() 读取（skills 命名空间，含 items 数组），
  * 控制台可实时编辑技能名/熟练度。
@@ -17,6 +20,7 @@ import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
 import { useDeviceLayout } from '@/composables/useDeviceLayout'
+import { resolveBubbleSize } from '@/composables/useBubble'
 
 const props = defineProps({
   config: { type: Object, required: true },
@@ -66,6 +70,19 @@ function tagSize(level) {
   const k = (level - 55) / 45
   return `${(min + (max - min) * Math.max(0, Math.min(1, k))).toFixed(2)}rem`
 }
+
+/* ===================== 气泡图：单气泡可编辑绑定（需求 7） =====================
+   每个气泡独立可选中（elementKey = `items.<index>`，与 useBubble 的
+   元素级 size 覆盖键一致）→ 左侧配置浮窗/交互层可对该气泡单独调大小。
+   容器仍保留 ed('items') 作整列表选中，单气泡点击 stopPropagation 不冲突。 */
+function edItem(i, s) {
+  return {
+    moduleId: props.config.id,
+    key: `items.${i}`,
+    label: s?.name ? `${s.name} · ${s.level}%` : `#${i + 1}`,
+    type: 'list'
+  }
+}
 </script>
 
 <template>
@@ -77,7 +94,7 @@ function tagSize(level) {
       <!-- ======== 区块标题 ======== -->
       <header class="hm-skills__head">
         <span class="hm-skills__eyebrow" v-editable="ed('eyebrow')">{{ T('eyebrow') }}</span>
-        <h2 class="hm-skills__title" :class="emphasizeClass" v-editable="ed('title')">
+        <h2 class="hm-skills__title" :class="emphasizeClass" v-editable="ed('title')" v-element-style="'title'">
           <TextReveal :anim="config.textAnim" :text="T('title')" :delay="0.1" />
         </h2>
         <span class="hm-skills__line"></span>
@@ -119,7 +136,7 @@ function tagSize(level) {
       </ul>
 
       <!-- ======== variant c：标签云 ======== -->
-      <div v-else class="hm-skills__cloud glass" v-editable="ed('items')">
+      <div v-else-if="config.variant === 'c'" class="hm-skills__cloud glass" v-editable="ed('items')">
         <span
           v-for="s in SKILLS"
           :key="s.name"
@@ -127,6 +144,25 @@ function tagSize(level) {
           :class="{ 'is-on': revealed }"
           :style="{ fontSize: tagSize(s.level) }"
         >{{ s.name }}</span>
+      </div>
+
+      <!-- ======== variant d：气泡图（需求 7） ========
+           气泡直径 = resolveBubbleSize(level 映射 + 元素级 size 覆盖)；
+           --i 错峰浮动/浮现延迟；--bubble-scale 手机端整体缩放。
+           每个气泡独立 v-editable（key = items.<index>）→ 可单独选中/调大小。 -->
+      <div v-else class="hm-skills__bubbles" v-editable="ed('items')">
+        <span
+          v-for="(s, i) in SKILLS"
+          :key="`${s.name}-${i}`"
+          class="hm-skills__bubble"
+          :class="{ 'is-on': revealed }"
+          :data-item="i"
+          v-editable="edItem(i, s)"
+          :style="{ '--d': resolveBubbleSize(config.id, i, s.level) + 'px', '--i': i }"
+        >
+          <span class="hm-skills__bubble-name">{{ s.name }}</span>
+          <span class="hm-skills__bubble-level">{{ s.level }}%</span>
+        </span>
       </div>
     </div>
   </section>
@@ -257,6 +293,100 @@ function tagSize(level) {
 .hm-skills__tag.is-on { opacity: 1; }
 .hm-skills__tag:not(.is-on) { opacity: 0; }
 
+/* ==================== variant d：气泡图（需求 7） ====================
+   气泡直径由 --d（内联 px）决定，--bubble-scale 整体缩放（手机端调小）；
+   玻璃材质 = 径向高光 + 玻璃底 + 内发光/内阴影；revealed 前透明下沉，
+   revealed 后浮现并持续冒泡浮动（translate 独立于 transform，互不冲突）。 */
+.hm-skills__bubbles {
+  --bubble-scale: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-6);
+}
+.hm-skills__bubble {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: calc(var(--d, 80px) * var(--bubble-scale, 1));
+  height: calc(var(--d, 80px) * var(--bubble-scale, 1));
+  border-radius: 50%;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.10) 34%, transparent 60%),
+    radial-gradient(circle at 72% 80%, rgba(255, 255, 255, 0.10) 0%, transparent 46%),
+    var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.3),
+    inset 0 0 22px var(--accent-cyan-soft),
+    inset -6px -10px 18px rgba(0, 0, 0, 0.28);
+  cursor: default;
+  opacity: 0;
+  transform: translateY(18px) scale(0.82);
+  /* opacity/transform 错峰浮现（--i * 70ms），border/shadow 即时响应 hover */
+  transition:
+    opacity 0.7s var(--ease-out) calc(var(--i, 0) * 70ms),
+    transform 0.7s var(--ease-out) calc(var(--i, 0) * 70ms),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+  animation: hm-bubble-float 5.5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * -0.7s);
+  will-change: transform;
+}
+/* 玻璃珠高光点（液体气泡质感）：单气泡的右上高光 + 底部反光 */
+.hm-skills__bubble::before {
+  content: '';
+  position: absolute;
+  left: 24%;
+  top: 16%;
+  width: 26%;
+  height: 13%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 72%);
+  filter: blur(0.5px);
+  pointer-events: none;
+}
+.hm-skills__bubble.is-on { opacity: 1; transform: translateY(0) scale(1); }
+.hm-skills__bubble:hover {
+  border-color: var(--accent-cyan);
+  box-shadow:
+    0 8px 26px rgba(0, 0, 0, 0.34),
+    0 0 24px var(--accent-cyan-soft),
+    inset 0 0 22px var(--accent-cyan-soft),
+    inset -6px -10px 18px rgba(0, 0, 0, 0.28);
+}
+.hm-skills__bubble-name {
+  font-size: calc(var(--d, 80px) * 0.115 * var(--bubble-scale, 1));
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  padding: 0 12%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  pointer-events: none;
+}
+.hm-skills__bubble-level {
+  font-family: var(--font-mono);
+  font-size: calc(var(--d, 80px) * 0.085 * var(--bubble-scale, 1));
+  color: var(--accent-cyan);
+  opacity: 0.85;
+  pointer-events: none;
+}
+@keyframes hm-bubble-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-skills__bubble { animation: none; }
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 980px) {
   .hm-skills__bars { grid-template-columns: 1fr; }
@@ -279,4 +409,5 @@ function tagSize(level) {
 .hm-skills.is-mobile .hm-skills__ring-svg { width: 64px; height: 64px; }
 .hm-skills.is-mobile .hm-skills__cloud { padding: var(--space-5); gap: var(--space-2) var(--space-3); }
 .hm-skills.is-mobile .hm-skills__tag { padding: var(--space-1) var(--space-3); }
+.hm-skills.is-mobile .hm-skills__bubbles { --bubble-scale: 0.78; padding: var(--space-4); gap: var(--space-2) var(--space-3); }
 </style>
