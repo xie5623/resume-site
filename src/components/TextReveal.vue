@@ -25,6 +25,7 @@
  */
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useTextAnim } from '@/composables/useTextAnim'
+import { editing } from '@/composables/useEditingMode'
 
 const props = defineProps({
   text:     { type: String, default: '' },
@@ -49,6 +50,12 @@ function setup() {
      useTextAnim 从 DOM 读原文拆分，会导致语言切换后标题仍旧文案。
      这里强制把最新 props.text 写入元素，保证拆分来源正确。 */
   root.value.textContent = props.text
+
+  /* 编辑态（body.editing = 控制台展开）：不重播文字动画——
+     用户编辑内容时直接显示最终文本，避免"每次改完都重新逐字动画"的屏闪。
+     动画只在成品态（收起控制台）播放一次。 */
+  if (editing.value) return
+
   api = useTextAnim(root.value, props.anim, {
     delay: props.delay,
     duration: props.duration,

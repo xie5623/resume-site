@@ -87,11 +87,12 @@ if (props.revealMode === 'deck') {
 const { scale: autoScale } = useAutoFit(sectionRef)
 const clampScale = (v) => Math.min(1.9, Math.max(0.7, v))
 const sectionStyle = computed(() => {
-  /* 拖拽摆放（layoutOn）：元素已脱离流式（absolute），模块高度会随
-     摆放位置变化——此时禁用自动字号重算（autoScale 固定为 1），
-     避免「高度变化 → 字号变化 → 布局再变」的震荡型屏闪。
-     用户手动摆放时字号只受 fontScale/emphasize 控制，可预期。 */
-  const eff = clampScale((props.module.fontScale ?? 1) * (layoutOn.value ? 1 : autoScale.value) * (props.module.emphasize ? 1.4 : 1))
+  /* 编辑态（控制台展开）或拖拽摆放时：禁用自动字号重算（autoScale 固定 1）。
+     - 编辑态：改内容→高度变化→autoFit 重算→字号跳动，正是"每次改完屏闪"的
+       视觉来源之一；编辑时字号只受 fontScale/emphasize 控制，所见即所得。
+     - 拖拽摆放：元素脱离流式，高度随摆放变化，同理禁用防震荡。
+     成品态（收起控制台）恢复自动缩放。 */
+  const eff = clampScale((props.module.fontScale ?? 1) * (editing.value || layoutOn.value ? 1 : autoScale.value) * (props.module.emphasize ? 1.4 : 1))
   return {
     '--fs-scale': eff,        // 模块通用字号系数（模块组件消费）
     '--mod-font-scale': eff   // 兜底变量（阶段二契约：未读 --fs-scale 的模块用这个）

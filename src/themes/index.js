@@ -30,63 +30,63 @@
    ============================================================ */
 
 /* ============================================================
-   1) dark-glass — 极客终端（默认主题）
-   深黑绿底 + 终端绿/电光蓝 + 扫描线 + 网格 + 等宽标题。
-   保留深色玻璃为核心，注入"代码终端"气质。
+   1) dark-glass — 极客（默认主题）
+   深蓝黑底 + 青紫霓虹（第一版经典配色）+ 等宽字体细节。
+   深色玻璃拟态为核心，等宽标题注入"代码/极客"气质。
    ============================================================ */
 export const darkGlassTheme = {
   id: 'dark-glass',
-  name: { zh: '极客', en: 'Geek Terminal' },
+  name: { zh: '极客', en: 'Geek' },
   colorScheme: 'dark',
-  preview: 'linear-gradient(135deg, #0a0f0a 0%, #34f5a0 100%)',
+  preview: 'linear-gradient(135deg, #0a0e1a 0%, #a78bfa 100%)',
   desc: {
-    zh: '深黑绿底、终端绿/电光蓝、扫描线、网格、等宽字体',
-    en: 'Deep green-black, terminal green & cyan, scanlines, grid, monospace'
+    zh: '深蓝黑底、青紫霓虹、毛玻璃、等宽字体',
+    en: 'Deep navy-black, cyan-purple neon, glassmorphism, monospace'
   },
   cssVars: {
-    /* 背景：深黑绿 */
-    '--bg-base': '#0a0f0a',
-    '--bg-elevated': '#0f1710',
-    '--bg-deep': '#050805',
-    '--bg-grid': 'rgba(52, 245, 160, 0.06)',
-    /* 玻璃卡片：绿调暗玻璃 */
-    '--glass-bg': 'rgba(16, 32, 22, 0.55)',
-    '--glass-bg-strong': 'rgba(20, 42, 28, 0.68)',
-    '--glass-bg-hover': 'rgba(26, 54, 36, 0.75)',
-    '--glass-border': 'rgba(74, 222, 128, 0.18)',
-    '--glass-border-hover': 'rgba(52, 245, 160, 0.5)',
-    '--glass-highlight': 'rgba(52, 245, 160, 0.45)',
-    /* 文字：薄荷白 */
-    '--text-primary': '#d9fce4',
-    '--text-secondary': 'rgba(185, 240, 205, 0.72)',
-    '--text-muted': 'rgba(150, 210, 175, 0.5)',
-    /* 终端绿强调 + 电光蓝次强调 */
-    '--accent-cyan': '#34f5a0',
-    '--accent-purple': '#39d0ff',
-    '--accent-pink': '#ff5fa2',
-    '--accent-gradient': 'linear-gradient(135deg, #34f5a0 0%, #39d0ff 100%)',
-    '--accent-cyan-soft': 'rgba(52, 245, 160, 0.28)',
-    '--accent-purple-soft': 'rgba(57, 208, 255, 0.22)',
+    /* 背景：深蓝黑（第一版经典） */
+    '--bg-base': '#0a0e1a',
+    '--bg-elevated': '#0e1424',
+    '--bg-deep': '#06080f',
+    '--bg-grid': 'rgba(148, 163, 255, 0.05)',
+    /* 玻璃卡片：低透明白 + 细高光边框 */
+    '--glass-bg': 'rgba(255, 255, 255, 0.06)',
+    '--glass-bg-strong': 'rgba(255, 255, 255, 0.1)',
+    '--glass-bg-hover': 'rgba(255, 255, 255, 0.12)',
+    '--glass-border': 'rgba(255, 255, 255, 0.12)',
+    '--glass-border-hover': 'rgba(255, 255, 255, 0.24)',
+    '--glass-highlight': 'rgba(255, 255, 255, 0.55)',
+    /* 文字：近白 */
+    '--text-primary': '#eef2ff',
+    '--text-secondary': 'rgba(226, 232, 255, 0.72)',
+    '--text-muted': 'rgba(203, 213, 255, 0.48)',
+    /* 霓虹强调：青 / 紫渐变（第一版经典） */
+    '--accent-cyan': '#22d3ee',
+    '--accent-purple': '#a78bfa',
+    '--accent-pink': '#f472b6',
+    '--accent-gradient': 'linear-gradient(135deg, #22d3ee 0%, #a78bfa 100%)',
+    '--accent-cyan-soft': 'rgba(34, 211, 238, 0.35)',
+    '--accent-purple-soft': 'rgba(167, 139, 250, 0.35)',
     /* 语义色 + 强调面文字 + 进度轨道 */
-    '--success': '#34f5a0',
-    '--warning': '#ffb454',
-    '--danger': '#ff5f6d',
-    '--on-accent': '#04130b',
-    '--track-bg': 'rgba(52, 245, 160, 0.12)',
-    /* 字体栈：等宽细节（标题/按钮走 mono） */
+    '--success': '#34d399',
+    '--warning': '#fbbf24',
+    '--danger': '#f87171',
+    '--on-accent': '#0a0e1a',
+    '--track-bg': 'rgba(255, 255, 255, 0.08)',
+    /* 字体栈：等宽细节（标题/按钮走 mono，极客感） */
     '--font-sans': "'Inter', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif",
     '--font-serif': "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', Georgia, 'Times New Roman', serif",
     '--font-mono': "'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace",
-    /* 阴影：深沉 + 绿辉光 */
-    '--shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.35)',
-    '--shadow-md': '0 8px 24px rgba(0, 0, 0, 0.45)',
-    '--shadow-lg': '0 16px 48px rgba(0, 0, 0, 0.6)',
-    '--shadow-glow': '0 0 24px rgba(52, 245, 160, 0.35)',
-    /* 圆角：锐利，终端面板感 */
-    '--radius-sm': '0.25rem',
-    '--radius-md': '0.5rem',
-    '--radius-lg': '0.75rem',
-    '--radius-xl': '1.25rem',
+    /* 阴影：深沉 + 青紫辉光 */
+    '--shadow-sm': '0 1px 2px rgba(0, 0, 0, 0.25)',
+    '--shadow-md': '0 8px 24px rgba(0, 0, 0, 0.35)',
+    '--shadow-lg': '0 16px 48px rgba(0, 0, 0, 0.5)',
+    '--shadow-glow': '0 0 24px rgba(34, 211, 238, 0.35)',
+    /* 圆角：偏锐利，终端面板感 */
+    '--radius-sm': '0.375rem',
+    '--radius-md': '0.625rem',
+    '--radius-lg': '1rem',
+    '--radius-xl': '1.5rem',
     '--radius-pill': '9999px',
     /* 毛玻璃模糊 */
     '--blur-sm': '8px',
@@ -102,9 +102,9 @@ export const darkGlassTheme = {
   z-index: 0;
   pointer-events: none;
   background:
-    repeating-linear-gradient(0deg, rgba(52, 245, 160, 0.035) 0 1px, transparent 1px 3px),
-    radial-gradient(60rem 30rem at 80% -10%, rgba(52, 245, 160, 0.08), transparent 60%),
-    radial-gradient(50rem 30rem at 8% 22%, rgba(57, 208, 255, 0.06), transparent 55%);
+    repeating-linear-gradient(0deg, rgba(148, 163, 255, 0.03) 0 1px, transparent 1px 3px),
+    radial-gradient(60rem 30rem at 80% -10%, rgba(34, 211, 238, 0.07), transparent 60%),
+    radial-gradient(50rem 30rem at 8% 22%, rgba(167, 139, 250, 0.07), transparent 55%);
 }
 [data-theme='dark-glass'] h1,
 [data-theme='dark-glass'] h2,
@@ -114,10 +114,10 @@ export const darkGlassTheme = {
   letter-spacing: 0.02em;
 }
 [data-theme='dark-glass'] .glass {
-  box-shadow: inset 0 0 0 1px rgba(52, 245, 160, 0.06), var(--shadow-md);
+  box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.06), var(--shadow-md);
 }
 [data-theme='dark-glass'] .glass--accent {
-  box-shadow: 0 0 24px rgba(52, 245, 160, 0.28);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.25);
 }
 [data-theme='dark-glass'] .glass-btn,
 [data-theme='dark-glass'] .glass-input {
