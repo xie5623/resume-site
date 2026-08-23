@@ -241,19 +241,3 @@ body.resizing-panel {
   user-select: none;
   -webkit-user-select: none;
 }
-
-/* ---- 元素级大小消费（需求 6 缩放手柄）：v-element-style 写了
-   --el-w / --el-h + data-el-resizable 时按变量定宽高 ----
-   （无变量/无标记时本规则不生效，元素保持默认流式布局） */
-[data-el-resizable] {
-  width: var(--el-w, auto);
-  height: var(--el-h, auto);
-  max-width: 100%;
-}
-
-/* 缩放手柄拖拽中：禁止选中 + 显示右下调整光标 */
-body.resizing-element {
-  cursor: nwse-resize;
-  user-select: none;
-  -webkit-user-select: none;
-}

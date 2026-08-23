@@ -25,6 +25,13 @@ const store = new Map()
 /* 已声明「由 App 装配层负责 reveal」的模块 id 集合 */
 const expected = new Set()
 
+/* id -> fn：模块入场动画「重播」回调注册表（ModuleSection 装配层注册） */
+const replayRegistry = new Map()
+
+/* moduleId -> Set<fn>：模块文字动画「强制重播」注册表（TextReveal 组件注册）。
+   一个模块可有多个 TextReveal（标题/副标题/正文），每个注册自己的 forceStart。 */
+const textAnimRegistry = new Map()
+
 /**
  * 注册：App 装配层声明负责某模块的 reveal 标记。
  * @param {string} id 模块 id
@@ -38,6 +45,83 @@ export function registerModuleReveal(id) {
 export function unregisterModuleReveal(id) {
   expected.delete(id)
   store.delete(id)
+  replayRegistry.delete(id)
+  textAnimRegistry.delete(id)
+}
+
+/**
+ * 重置：把某模块的 revealed 置回 false（重播入场前调用）。
+ * @param {string} id 模块 id
+ */
+export function resetModuleRevealed(id) {
+  const r = store.get(id)
+  if (r) r.value = false
+}
+
+/**
+ * 注册重播回调：模块入场动画可被「重新播放」按钮触发。
+ * @param {string}   id   模块 id
+ * @param {Function} fn   重播回调（无参）
+ */
+export function registerModuleReplay(id, fn) {
+  if (typeof fn === 'function') replayRegistry.set(id, fn)
+}
+
+/** 注销重播回调 */
+export function unregisterModuleReplay(id) {
+  replayRegistry.delete(id)
+}
+
+/**
+ * 触发重播：有注册回调则调用，无则 no-op（如 deck 形态未注册）。
+ * @param {string} id 模块 id
+ */
+export function replayModuleEntrance(id) {
+  const fn = replayRegistry.get(id)
+  if (typeof fn === 'function') fn()
+}
+
+/* ===================== 文字动画重播注册表（编辑态可验证） ===================== */
+
+/**
+ * 注册文字动画强制重播回调（TextReveal 挂载时调用）。
+ * @param {string}   moduleId 模块 id（元素所在 [data-module] 容器）
+ * @param {Function} fn       forceStart 回调（无参，强制重播文字动画）
+ */
+export function registerTextAnim(moduleId, fn) {
+  if (!moduleId || typeof fn !== 'function') return
+  let set = textAnimRegistry.get(moduleId)
+  if (!set) {
+    set = new Set()
+    textAnimRegistry.set(moduleId, set)
+  }
+  set.add(fn)
+}
+
+/** 注销文字动画重播回调（TextReveal 卸载时调用）；Set 空则删 key */
+export function unregisterTextAnim(moduleId, fn) {
+  if (!moduleId) return
+  const set = textAnimRegistry.get(moduleId)
+  if (!set) return
+  set.delete(fn)
+  if (set.size === 0) textAnimRegistry.delete(moduleId)
+}
+
+/**
+ * 触发某模块全部文字动画强制重播（编辑态控制台「重新播放」用）。
+ * 逐个调用，单个回调异常不影响其余文字动画重播。
+ * @param {string} moduleId 模块 id
+ */
+export function replayModuleTextAnims(moduleId) {
+  const set = textAnimRegistry.get(moduleId)
+  if (!set) return
+  set.forEach((fn) => {
+    try {
+      fn()
+    } catch (e) {
+      console.warn('[moduleReveal] 文字动画重播失败:', e)
+    }
+  })
 }
 
 /**

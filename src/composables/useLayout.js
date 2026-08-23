@@ -6,7 +6,7 @@
    - 单例 reactive 状态：
        layout = {
          enabled:   { moduleId: boolean },        // 每模块拖拽开关
-         positions: { moduleId: { elementKey: { x, y, unit, cw, ch } } }
+         positions: { moduleId: { elementKey: { x, y, unit, w, cw, ch } } }
        }
    - 默认关闭：每个模块的 layoutEnabled 默认 false（模块配置里开开关
      ——console-dev 的模块配置 UI 调 toggleLayout(moduleId, on)）。
@@ -21,7 +21,7 @@
      isLayoutEnabled(moduleId) // 该模块拖拽摆放是否开启（默认 false）
      toggleLayout(moduleId, on)            // 开关某模块拖拽 + 持久化
      setElementPos(moduleId, elementKey, pos, containerSize?) // 记录位置 + 持久化
-       pos: { x, y, unit? }   unit 默认 '%'；传 'px' 用像素
+       pos: { x, y, unit?, w? }   unit 默认 '%'；传 'px' 用像素；w 可选 = 像素宽度（拖拽时记录，供摆放保持原宽）
        containerSize?: { width, height }  有值时把像素换算成 %（自动适配）
      getElementPos(moduleId, elementKey)  // 读一条位置（响应式）
      getLayout(moduleId)                  // { enabled, positions }（模块配置面板用）
@@ -99,19 +99,20 @@ export function toggleLayout(moduleId, on) {
 /* ---------- 位置读写 ---------- */
 /**
  * setElementPos(moduleId, elementKey, pos, containerSize?) — 记录元素位置。
- * pos: { x, y, unit? }；unit 默认 '%'（相对模块容器百分比 → 自动适配），
- * 传 'px' 则存固定像素（不做自动适配）。
+ * pos: { x, y, unit?, w? }；unit 默认 '%'（相对模块容器百分比 → 自动适配），
+ * 传 'px' 则存固定像素（不做自动适配）。w 可选 = 像素宽度（拖拽摆放时
+ * 记录，供 editable.apply() 摆放时保持原宽，避免 fit-content 缩成内容宽）。
  * 传入 containerSize 且 pos 未显式给 unit 时，把像素换算成 %：
  *   x% = x / 容器宽 * 100，y% = y / 容器高 * 100（拖拽回调直接传像素即可）。
  */
 export function setElementPos(moduleId, elementKey, pos, containerSize) {
   ensureModule(moduleId)
-  const { x = 0, y = 0, unit } = pos || {}
+  const { x = 0, y = 0, unit, w } = pos || {}
   let entry
 
   if (unit === 'px') {
     entry = {
-      x, y, unit: 'px',
+      x, y, unit: 'px', w: w ?? null,
       cw: containerSize?.width ?? null, ch: containerSize?.height ?? null
     }
   } else if (containerSize && containerSize.width && containerSize.height) {
@@ -119,12 +120,12 @@ export function setElementPos(moduleId, elementKey, pos, containerSize) {
     entry = {
       x: (x / containerSize.width) * 100,
       y: (y / containerSize.height) * 100,
-      unit: '%',
+      unit: '%', w: w ?? null,
       cw: containerSize.width, ch: containerSize.height
     }
   } else {
     // 直接按百分比存（调用方已给 %）
-    entry = { x, y, unit: '%', cw: null, ch: null }
+    entry = { x, y, unit: '%', w: w ?? null, cw: null, ch: null }
   }
 
   layout.value.positions[moduleId][elementKey] = entry
@@ -222,6 +223,32 @@ export function scaleAllPx(scaleX, scaleY) {
   persist()
 }
 
+/* ---------- 待确认暂存位置（拖拽分步确认） ----------
+   SelectionBox 拖拽手柄松手后把元素最终像素偏移暂存到这里（不写 layout、
+   不重排、不持久化），UI 显示「确认修改 / 撤销」；点确认才走
+   historySetElementPos 真正写入 layout.value.positions 并持久化。
+   形状：{ moduleId, elementKey, x, y, w, containerSize }
+         x/y 为像素、w 为拖拽时记录的元素像素宽度（可选，透传）、
+         containerSize = { width, height }。 */
+export const pendingPos = ref(null)
+
+/** 暂存一个待确认的像素位置（只存，不写 layout / 不持久化）。 */
+export function stageElementPos(moduleId, elementKey, pos, containerSize) {
+  pendingPos.value = {
+    moduleId,
+    elementKey,
+    x: pos?.x ?? 0,
+    y: pos?.y ?? 0,
+    w: pos?.w ?? null,
+    containerSize: containerSize ?? null
+  }
+}
+
+/** 清空待确认暂存位置。 */
+export function cancelPendingPos() {
+  pendingPos.value = null
+}
+
 /* ---------- 状态整体替换（撤销/重做历史用） ---------- */
 export function replaceLayoutState(next) {
   layout.value = cloneDeep(next ?? { enabled: {}, positions: {} })
@@ -243,6 +270,9 @@ export function useLayout() {
     toPx,
     fitToContainer,
     scaleAllPx,
+    pendingPos,
+    stageElementPos,
+    cancelPendingPos,
     STORAGE_KEY
   }
 }

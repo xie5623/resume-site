@@ -15,6 +15,8 @@
  *     （{ x, y, visible }）；收起后左下角出现 ⚙ 重开小按钮。
  * 所有写操作与原来一致：改配置走 useHistory（可撤销），字号滑块
  * 拖动期间实时预览、松手入栈一次。
+ * 注意：入场动画始终写【模块级】（模块容器入场是模块级概念）；只有
+ * 文字动画等字段在元素选中时写元素级补丁。
  */
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useTemplates } from '@/composables/useTemplates'
@@ -34,6 +36,7 @@ import { editing } from '@/composables/useEditingMode'
 import { capture, push, historyUpdateModule, historyToggleLayout, withHistory, historyPasteAsNewModule, historySetElementStyle, historyClearElementStyle } from '@/composables/useHistory'
 import { copyModule, clipboard } from '@/composables/useClipboard'
 import { resolveElementStyle, getElementStyle, setElementStyle } from '@/composables/useElementStyle'
+import { replayModuleEntrance } from '@/composables/moduleReveal'
 
 const { version } = useVersion()
 const { lang } = useI18n()
@@ -207,9 +210,24 @@ function patch(p) {
     historyUpdateModule(version.value, selected.value.id, p)
   }
 }
-function patchAnim(e) { patch({ animation: e.target.value }) }
+function patchAnim(e) {
+  /* 入场动画始终写【模块级】：入场动画是模块级概念——模块容器入场由
+     ModuleSection 的模块级 animation 驱动，元素级 animation 补丁没人消费。
+     元素/模块选中都写模块级（useReveal 监听 props.module.animation，改即重建）。 */
+  if (!selected.value) return
+  historyUpdateModule(version.value, selected.value.id, { animation: e.target.value })
+}
+/* 文字动画保持现状：选中元素时写元素级 textAnim 补丁（fe-textanim 落地消费） */
 function patchTextAnim(e) { patch({ textAnim: e.target.value }) }
 function patchVariant(v) { patch({ variant: v }) }
+
+/* 「重新播放」：重播当前模块入场动画（需先保存当前动画配置，再立即重播验证）。
+   元素级选中时 effectiveCfg 是元素级动画，但模块容器入场由 ModuleSection 的
+   模块级 animation 驱动——重播始终作用于当前选中模块的容器入场，故用 effectiveId。 */
+function replayEntrance() {
+  if (!effectiveId.value) return
+  replayModuleEntrance(effectiveId.value)
+}
 
 /* 字号滑块：@input 实时预览；开始拖/聚焦时捕获快照，松手入栈一次 */
 const pendingScaleSnap = ref(null)
@@ -282,6 +300,7 @@ const labels = {
   title: { zh: '模块配置', en: 'Module config' },
   module: { zh: '模块', en: 'Module' },
   animation: { zh: '入场动画', en: 'Entry animation' },
+  replay: { zh: '重新播放', en: 'Replay' },
   textAnim: { zh: '文字动画', en: 'Text animation' },
   fontScale: { zh: '字号缩放', en: 'Font scale' },
   emphasize: { zh: '渐变强调', en: 'Gradient emphasize' },
@@ -396,7 +415,17 @@ const labels = {
 
         <!-- 入场动画 -->
         <div class="cfg-field">
-          <span class="cfg-label">{{ labels.animation[lang] }}</span>
+          <div class="cfg-head">
+            <span class="cfg-label">{{ labels.animation[lang] }}</span>
+            <button
+              type="button"
+              class="cfg-replay-btn"
+              :disabled="!effectiveId"
+              :title="labels.replay[lang]"
+              :aria-label="labels.replay[lang]"
+              @click="replayEntrance"
+            >↻ {{ labels.replay[lang] }}</button>
+          </div>
           <select class="cfg-select" :value="effectiveCfg?.animation" @change="patchAnim">
             <option v-for="a in ALLOWED_ANIMATIONS" :key="a" :value="a">{{ a }}</option>
           </select>
@@ -469,8 +498,8 @@ const labels = {
           </div>
         </div>
 
-        <!-- 布局变体 -->
-        <div class="cfg-field">
+        <!-- 布局变体（元素级选中时隐藏：元素级无法切换变体） -->
+        <div class="cfg-field" v-if="!isElementSel">
           <span class="cfg-label">{{ labels.variant[lang] }}</span>
           <div class="cfg-segs" role="group">
             <button
@@ -736,6 +765,26 @@ const labels = {
   border-color: transparent;
 }
 .cfg-clone-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ---------- 重新播放（入场动画重播，需求 4） ---------- */
+.cfg-replay-btn {
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--c-text-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-pill);
+  background: var(--c-panel);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.cfg-replay-btn:hover:not(:disabled) {
+  color: var(--c-on-accent);
+  background: var(--c-grad);
+  border-color: transparent;
+}
+.cfg-replay-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ---------- 变体分段 ---------- */
 .cfg-segs {

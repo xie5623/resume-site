@@ -701,17 +701,18 @@ pasteAsNewModule()                               // createModuleInstance 生成�
   2. **全局快捷键**：编辑态 `Ctrl+C` / `Ctrl+V`（焦点在输入框/可编辑区时不劫持，让浏览器原生处理）。
   3. **模块配置浮窗**（ModuleConfigBar）：`复制本模块` / `粘贴为副本模块`（仅剪贴板为模块时可用）。
 
-### 16.2 拖拽大小调整（缩放手柄）
+### 16.2 拖拽摆放（拖拽手柄 · 重构版，取代原缩放手柄）
 
-- **入口**：元素级选中时，高亮框右下角出现缩放手柄（`pointer-events:auto`，nwse-resize 光标）。
-- **写什么（元素级 size，持久化 + 实时预览 + 可撤销）**：
-  - **技能气泡**（skills variant d 的列表条目）：直径 px（number size）→ 写
-    `items.<index>`，`resolveBubbleSize` 消费 → `--d` 实时生效。
-  - **通用元素**（文字块/模块标题等）：`{ w, unit:'px' }` → `v-element-style` 落地 `--el-w`
-    （高度自动回流，不裁剪文字）。
-- **交互**：pointer 拖拽实时 `setElementStyle`（预览）；拖前 `capture()` 快照、松手 `push()` 入栈
-  = 整个拖拽一步撤销。与字号滑块相同的「拖动中不入栈」模式。
-- **消费落地**：8 个模块标题 h2（About/Experience/Projects/Skills + Certificates/Contact/Education/Portfolio）
-  已挂 `v-element-style="'title'"`（无补丁时零改动，安全叠加）。
-- **协作**：气泡副本/粘贴由 §13.2 自动平移下标样式；缩放手柄与 T7 气泡交互共享
-  `items.<index>.size` 字段，互不冲突。
+> ⚠️ 已按用户反馈重构（2026-08）：**移除「自由缩放/右下角缩放手柄」与 `--el-w/--el-h`
+> 固定尺寸落地**（`v-element-style` 不再写 size）；元素框改为随字号自然变大变小
+> （气泡 `--d` 另乘 `--fs-scale` 跟随模块字号缩放）。原「任意按住元素即可拖拽」
+> 也已移除（`editable.js` 不再绑 pointerdown 拖拽——修复按住时间线等容器整块被移动）。
+
+- **拖拽入口**：元素级选中 + 编辑态 + 该模块「拖拽摆放」开启时，高亮框右下角出现
+  **拖拽手柄**（`.sel-drag`，grab 光标）。按住手柄才拖拽该元素（`SelectionBox.vue`）。
+- **拖拽预览**：用 `transform: translate3d(...)` 预览跟手移动，**不触发重排/不写 layout**。
+- **分步确认**：松手后元素停在预览位置，出现「✓ 确认修改 / ✕ 撤销」条：
+  - 确认 → `historySetElementPos`（px→% 换算 + 持久化 + 可撤销）→ `editable.apply()` 落地 absolute 定位；
+  - 撤销 / 切换选中 / 退出编辑态 → 清除预览回原位（`useLayout.pendingPos` 暂存态）。
+- **协作**：气泡副本/粘贴由 §13.2 自动平移下标样式；气泡直径仍走
+  `resolveBubbleSize`（元素级 `items.<index>.size` 覆盖优先），缩放改由 `--fs-scale` 驱动。

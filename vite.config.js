@@ -4,6 +4,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages 子路径部署：仓库为 hang5623/resume-site，资源都挂 /resume-site/
+  base: '/resume-site/',
   plugins: [vue()],
   resolve: {
     alias: {

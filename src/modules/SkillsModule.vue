@@ -313,8 +313,8 @@ function edItem(i, s) {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: calc(var(--d, 80px) * var(--bubble-scale, 1));
-  height: calc(var(--d, 80px) * var(--bubble-scale, 1));
+  width: calc(var(--d, 80px) * var(--bubble-scale, 1) * var(--fs-scale, 1));
+  height: calc(var(--d, 80px) * var(--bubble-scale, 1) * var(--fs-scale, 1));
   border-radius: 50%;
   color: var(--text-primary);
   background:
@@ -362,7 +362,7 @@ function edItem(i, s) {
     inset -6px -10px 18px rgba(0, 0, 0, 0.28);
 }
 .hm-skills__bubble-name {
-  font-size: calc(var(--d, 80px) * 0.115 * var(--bubble-scale, 1));
+  font-size: calc(var(--d, 80px) * 0.115 * var(--bubble-scale, 1) * var(--fs-scale, 1));
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
@@ -374,7 +374,7 @@ function edItem(i, s) {
 }
 .hm-skills__bubble-level {
   font-family: var(--font-mono);
-  font-size: calc(var(--d, 80px) * 0.085 * var(--bubble-scale, 1));
+  font-size: calc(var(--d, 80px) * 0.085 * var(--bubble-scale, 1) * var(--fs-scale, 1));
   color: var(--accent-cyan);
   opacity: 0.85;
   pointer-events: none;

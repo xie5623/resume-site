@@ -12,12 +12,13 @@
       - 编辑态点击 → useSelection.selectElement(moduleId, key) +
         setSelectionEl(el)（供 console-dev SelectionBox 定位）
       - 自身 data-selected=true 高亮（CSS 叠加）
-   3. 拖拽摆放（需求 5，重点）：
-      - 模块开启「拖拽摆放」（useLayout.isLayoutEnabled）时，
-        pointer 拖拽元素改变位置：拖拽中脱离流式（absolute + 偏移），
-        松手 setElementPos(moduleId, key, {x,y}, 容器尺寸) 记录 % 坐标
-        （resize 自动按比例保持）；实时跟随 + 拖拽态视觉反馈。
+   3. 位置应用（需求 5）：
+      - 模块开启「拖拽摆放」（useLayout.isLayoutEnabled）且元素有保存位置时，
+        apply() 把元素脱离流式按记录坐标绝对定位（resize 自动按比例保持）。
       - 关闭摆放 / 未记录位置时清理内联样式 → 恢复默认流式布局。
+      - 【拖拽本体已移到 SelectionBox.vue 的拖拽手柄】：用户选中元素后按住
+        右下角手柄拖拽，预览用 transform（不触发重排），松手暂存，点确认才
+        写入位置（见 SelectionBox.vue）。本指令不再拦截 pointerdown 整块拖走。
 
    用法（模板）：<h1 v-editable="ed('name')">…</h1>
    ed() 来自 useEditableElement（模块组件内注册清单 + 返回绑定对象）。
@@ -31,15 +32,11 @@ import {
 } from '@/composables/useSelection'
 import {
   isLayoutEnabled,
-  getElementPos,
-  setElementPos
+  getElementPos
 } from '@/composables/useLayout'
 import { editing } from '@/composables/useEditingMode'
+import { getElementStyle } from '@/composables/useElementStyle'
 import { resolveListItemPath } from '@/composables/useItemPath'
-
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v))
-}
 
 export const vEditable = {
   mounted(el, binding) {
@@ -132,7 +129,14 @@ export const vEditable = {
         st.margin = '0'
         st.maxWidth = '100%'
         st.zIndex = '5'
-        st.width = 'fit-content'
+        /* 宽度协调（与 v-element-style 的 fit-content 规则配对，见 elementStyle.js）：
+           有【元素级字号补丁】（fontScale 数字 ≠ 1）时，宽度交给 elementStyle.js
+           的 fit-content 自适应（问题4——框随字号/内容变大变小），本处不覆盖；
+           无字号补丁时，按拖拽时记录的像素宽度定宽，保持元素原始尺寸，
+           避免 fit-content 把块级元素缩成内容宽造成「变形」（问题2）。 */
+        const rawPatch = getElementStyle(m, k)
+        const hasFontPatch = rawPatch && typeof rawPatch.fontScale === 'number' && rawPatch.fontScale !== 1
+        if (!hasFontPatch) st.width = pos.w ? `${pos.w}px` : 'auto'
         if (pos.unit === 'px') {
           st.left = `${pos.x}px`
           st.top = `${pos.y}px`
@@ -153,84 +157,23 @@ export const vEditable = {
       }
     }
     /* 用 getter 精确追踪：layout 是嵌套响应式（enabled/positions 内部
-       变更），直接 watch ref 不会触发；getter 读取时被追踪，变更即重跑。 */
+       变更），直接 watch ref 不会触发；getter 读取时被追踪，变更即重跑。
+       另追踪 getElementStyle：元素级字号补丁被清除/调回 1 时，本处
+       hasFontPatch 变 false → 把 width 写回 pos.w（否则会一直停在
+       elementStyle 的 fit-content，不回原宽）。 */
     const stopApply = watch(
       [
         selection,
         editing,
         () => isLayoutEnabled(moduleId),
-        () => getElementPos(moduleId, key)
+        () => getElementPos(moduleId, key),
+        () => getElementStyle(moduleId, key)
       ],
       apply,
       { flush: 'post', immediate: true }
     )
     state.stopFns.push(stopApply)
-
-    /* ---------- 4. 拖拽摆放（模块开启 + 编辑态时 pointer 拖拽） ---------- */
-    function onPointerDown(e) {
-      if (!editing.value || !isLayoutEnabled(moduleId)) return
-      if (e.button !== 0) return
-      /* 不劫持链接/表单等交互子元素（仍可点击选中，但不拖拽） */
-      if (e.target.closest('a, button, input, textarea, select')) return
-      /* 阻止冒泡：嵌套可编辑元素（如列表容器 + 列表项）都挂 v-editable 时，
-         只让最内层开启拖拽，避免容器与条目同时 startDrag 打架。 */
-      e.stopPropagation()
-      e.preventDefault()
-      startDrag(e)
-    }
-    el.addEventListener('pointerdown', onPointerDown)
-
-    function startDrag(e) {
-      const container = el.closest(`[data-module="${moduleId}"]`)
-      if (!container) return
-      const cRect = container.getBoundingClientRect()
-      const elRect = el.getBoundingClientRect()
-      const startX = elRect.left - cRect.left
-      const startY = elRect.top - cRect.top
-      const startCX = e.clientX
-      const startCY = e.clientY
-      const maxX = Math.max(0, cRect.width - elRect.width)
-      const maxY = Math.max(0, cRect.height - elRect.height)
-
-      const st = el.style
-      st.position = 'absolute'
-      st.margin = '0'
-      st.left = `${startX}px`
-      st.top = `${startY}px`
-      st.width = `${elRect.width}px`
-      st.maxWidth = '100%'
-      st.zIndex = '60'
-      el.classList.add('is-dragging')
-      document.body.setAttribute('data-drag-active', 'true')
-
-      function onMove(ev) {
-        st.left = `${clamp(startX + (ev.clientX - startCX), 0, maxX)}px`
-        st.top = `${clamp(startY + (ev.clientY - startCY), 0, maxY)}px`
-      }
-      function finish() {
-        const rect = el.getBoundingClientRect()
-        const c = container.getBoundingClientRect()
-        const nx = rect.left - c.left
-        const ny = rect.top - c.top
-        /* 传容器尺寸 → setElementPos 自动换算成 %（resize 按比例保持） */
-        setElementPos(moduleId, key, { x: nx, y: ny }, { width: c.width, height: c.height })
-        el.classList.remove('is-dragging')
-        el.removeEventListener('pointermove', onMove)
-        el.removeEventListener('pointerup', finish)
-        el.removeEventListener('pointercancel', finish)
-        document.body.removeAttribute('data-drag-active')
-        try { el.releasePointerCapture(e.pointerId) } catch (_) {}
-        apply()
-      }
-      el.addEventListener('pointermove', onMove)
-      el.addEventListener('pointerup', finish)
-      el.addEventListener('pointercancel', finish)
-      try { el.setPointerCapture(e.pointerId) } catch (_) {}
-    }
-
-    el.addEventListener('pointerdown', onPointerDown)
     state.onClick = onClick
-    state.onPointerDown = onPointerDown
   },
 
   updated(el, binding) {
@@ -247,7 +190,6 @@ export const vEditable = {
         try { stop() } catch (_) {}
       })
       el.removeEventListener('click', el._editable.onClick)
-      el.removeEventListener('pointerdown', el._editable.onPointerDown)
       delete el._editable
     }
     el.removeAttribute('data-editable-key')

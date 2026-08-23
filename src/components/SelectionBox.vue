@@ -1,6 +1,6 @@
 <script setup>
 /**
- * SelectionBox — 选中高亮框 + 复制/粘贴工具条 + 缩放手柄（需求 2 / 6）
+ * SelectionBox — 选中高亮框 + 复制/粘贴工具条 + 拖拽摆放手柄（需求 2 / 6）
  * ------------------------------------------------------------
  * 跟随 useSelection() 的选中态，在页面上绘制一个绝对定位的
  * 发光描边框 + 角标：
@@ -12,29 +12,30 @@
  *   单独放开 pointer-events: auto 可交互。
  * - 模块级选中：角标显示模块名；元素级选中：角标显示 模块名 · key。
  *
- * 需求 6（interaction-dev t5）新增：
- *   - 复制 / 粘贴工具条：选中任意元素（模块/条目/文字）后出现，
- *     复制走 copySelection，粘贴走 pasteSelection（useEditorActions，
- *     与 Ctrl+C/Ctrl+V 同一套逻辑，粘贴可撤销）。
- *   - 右下角缩放手柄（元素级选中时）：pointer 拖拽实时调整大小——
- *        · 技能气泡（skills variant d 的列表条目）→ 直径 px（number size，
- *          写 items.<index>，resolveBubbleSize 消费 → --d 实时生效）；
- *        · 通用元素（文字块/标题等）→ { w, unit:'px' }（写元素级 size，
- *          v-element-style 落地 --el-w；高度自动回流不裁剪）。
- *     拖拽期间实时预览、不打断编辑；松手把拖前快照入栈 = 一次撤销。
+ * 拖拽摆放重构（本组件负责）：
+ *   - 右下角【拖拽手柄】（取代原缩放光标）：元素级选中 + 编辑态 + 该模块
+ *     拖拽摆放开启时显示。按住手柄才拖拽该元素（元素本体不再整块被拖走，
+ *     根因修复见 editable.js——那里已移除 pointerdown 整块拖拽）。
+ *   - 拖拽预览用 transform（不触发重排/不写 layout），松手后元素停留在
+ *     预览位置，出现「✓ 确认修改 / ✕ 撤销」条：确认 → historySetElementPos
+ *     写入（可撤销、刷新保留）；撤销 → 清除预览回原位。
+ *   - 选中变化 / 退出编辑态时自动撤销待确认位置。
  */
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useSelection } from '@/composables/useSelection'
 import { useI18n } from '@/i18n'
 import { MODULE_LABELS } from '@/config/site.config'
 import { useEditorActions } from '@/composables/useEditorActions'
-import { setElementStyle } from '@/composables/useElementStyle'
-import { capture, push } from '@/composables/useHistory'
-import { getTemplateModules } from '@/composables/useTemplates'
-import { version } from '@/composables/useVersion'
+import { historySetElementPos } from '@/composables/useHistory'
+import {
+  isLayoutEnabled,
+  pendingPos,
+  stageElementPos,
+  cancelPendingPos
+} from '@/composables/useLayout'
 import { editing } from '@/composables/useEditingMode'
 
-const { selection, getSelectionRect } = useSelection()
+const { selection, getSelectionRect, selectionEl } = useSelection()
 const { lang } = useI18n()
 const { copySelection, pasteSelection, hasClipboard } = useEditorActions()
 
@@ -94,7 +95,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', schedule)
   window.removeEventListener('editor:content-change', onContentChange)
   if (raf) cancelAnimationFrame(raf)
-  onResizeEnd()
+  /* 清理拖拽监听与待确认状态 */
+  clearDragHandlers()
+  const p = pendingPos.value
+  if (p) { clearPreviewTransform(p); cancelPendingPos() }
 })
 
 /* ================= 复制 / 粘贴工具条（需求 6） =================
@@ -127,122 +131,153 @@ const copyDone = { zh: '已复制', en: 'Copied' }
 const pasteDone = { zh: '已粘贴', en: 'Pasted' }
 const copyFail = { zh: '未复制：先选中一个元素/模块', en: 'Nothing to copy — select first' }
 const pasteFail = { zh: '无法粘贴：剪贴板为空或目标不支持', en: 'Paste unavailable' }
-const handleL = { zh: '拖拽右下角调整大小', en: 'Drag corner to resize' }
+const dragL = { zh: '按住拖拽摆放', en: 'Drag to reposition' }
+const confirmL = { zh: '确认修改', en: 'Apply' }
+const cancelL = { zh: '撤销', en: 'Cancel' }
 
-/* ================= 右下角缩放手柄（需求 6 · 元素级选中） ================= */
-const resizing = ref(false)
-let resizeState = null
-
-const handleVisible = computed(() => editing.value && selection.value?.kind === 'element')
+/* ================= 右下角拖拽摆放手柄（元素级选中 + 模块开启拖拽摆放） ================= */
+const dragHandleVisible = computed(() => editing.value
+  && selection.value?.kind === 'element'
+  && isLayoutEnabled(selection.value?.moduleId))
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
 
-/** 元素级样式的键：列表条目 → `${listKey}.<index>`；标量 → 元素 key。
-    气泡单条 v-editable（key='items.<n>'）直接是条目路径，原样返回。 */
-function styleKeyOf(sel) {
-  if (Number.isInteger(sel.itemIndex)) return `${sel.elementKey}.${sel.itemIndex}`
-  return sel.elementKey
+/** 拖拽目标元素：优先 useSelection 注入的 selectionEl；回退按 data-editable-key 查询 */
+function dragTargetEl(moduleId, elementKey) {
+  if (selectionEl.value && typeof selectionEl.value.getBoundingClientRect === 'function') {
+    return selectionEl.value
+  }
+  if (typeof document === 'undefined') return null
+  return document.querySelector(`[data-editable-key="${moduleId}.${elementKey}"]`)
 }
 
-/** 从选中态解析「列表条目信息」：itemIndex 优先；气泡单条 key（items.<n>）
-    或气泡内字段 key（items.<n>.name / items.<n>.level）归一化成条目下标 */
-function itemInfoOf(sel) {
-  if (Number.isInteger(sel.itemIndex)) return { index: sel.itemIndex }
-  const m = /^(.+)\.(\d+)$/.exec(sel.elementKey || '')
-  if (m) return { index: Number(m[2]) }
-  const m2 = /^(.+)\.(\d+)\.(name|level)$/.exec(sel.elementKey || '')
-  return m2 ? { index: Number(m2[2]) } : null
+let dragState = null   /* 拖拽中状态 */
+let dragHandlers = null /* window pointer 监听（onBeforeUnmount 清理用） */
+let dragPreview = null  /* { el, origTransform }：待确认期间的预览残留（撤销/确认恢复用） */
+
+function clearDragHandlers() {
+  if (dragHandlers) {
+    window.removeEventListener('pointermove', dragHandlers.onMove)
+    window.removeEventListener('pointerup', dragHandlers.finish)
+    window.removeEventListener('pointercancel', dragHandlers.finish)
+    dragHandlers = null
+  }
 }
 
-/** 气泡缩放手柄的目标键：条目 key（items.<n>）；气泡内字段选中归一化为条目键 */
-function bubbleKeyOf(sel) {
-  if (Number.isInteger(sel.itemIndex)) return `${sel.elementKey}.${sel.itemIndex}`
-  const m = /^(.+)\.(\d+)$/.exec(sel.elementKey || '')
-  if (m) return sel.elementKey
-  const m2 = /^(.+)\.(\d+)\.(name|level)$/.exec(sel.elementKey || '')
-  return m2 ? `${m2[1]}.${m2[2]}` : sel.elementKey
+/** 恢复元素到拖拽前的 transform 并清掉预览残留引用 */
+function clearPreviewTransform() {
+  if (dragPreview) {
+    dragPreview.el.style.transform = dragPreview.origTransform
+    dragPreview = null
+  }
 }
 
-/** 是否气泡图条目：skills 模块 variant d 的列表条目（number size 消费方） */
-function isBubbleTarget(sel) {
-  if (!itemInfoOf(sel)) return false
-  const list = getTemplateModules(version.value)
-  const m = list.find((x) => x.id === sel.moduleId)
-  return m && (m.type ?? m.id) === 'skills' && m.variant === 'd'
-}
-
-function onResizeStart(e) {
+function onDragStart(e) {
   if (!editing.value) return
   const sel = selection.value
   if (!sel || sel.kind !== 'element') return
   if (e.button != null && e.button !== 0) return
-  const rect = getSelectionRect()
-  if (!rect || rect.width < 2 || rect.height < 2) return
+  const moduleId = sel.moduleId
+  const elementKey = sel.elementKey
+  const el = dragTargetEl(moduleId, elementKey)
+  if (!el || typeof el.closest !== 'function') return
+  const container = el.closest(`[data-module="${moduleId}"]`)
+  if (!container) return
   e.preventDefault()
   e.stopPropagation()
-  const bubble = isBubbleTarget(sel)
-  /* 气泡基线用当前气泡直径 --d（而非窄文字框的宽度），拖拽增量相对当前大小 */
-  let startW = rect.width
-  if (bubble) {
-    const info = itemInfoOf(sel)
-    const bub = document.querySelector(`[data-module="${sel.moduleId}"] .hm-skills__bubble[data-item="${info?.index ?? ''}"]`)
-    const d = bub ? parseFloat(bub.style.getPropertyValue('--d')) : NaN
-    if (Number.isFinite(d) && d > 0) startW = d
-  }
-  resizeState = {
-    startW,
-    startH: rect.height,
+
+  /* 已有待确认位置时先撤销上一段预览，再开始新拖拽 */
+  if (pendingPos.value) { clearPreviewTransform(); cancelPendingPos() }
+
+  dragState = {
+    el,
+    container,
+    moduleId,
+    elementKey,
+    w: el.offsetWidth || el.getBoundingClientRect().width,
+    origTransform: el.style.transform || '',
     cx: e.clientX,
     cy: e.clientY,
-    snapshot: capture(),          /* 拖前快照 → 松手入栈 = 一次撤销 */
-    bubble,
-    moduleId: sel.moduleId,
-    /* 气泡（含 items.<n>.name/level 字段选中）→ 归一化为气泡条目键 items.<n>，
-       通用元素 → 原选中键（styleKeyOf） */
-    styleKey: bubble ? bubbleKeyOf(sel) : styleKeyOf(sel)
+    pointerId: e.pointerId,
+    moved: false
   }
-  resizing.value = true
-  document.body.classList.add('resizing-element')
-  window.addEventListener('pointermove', onResizeMove)
-  window.addEventListener('pointerup', onResizeEnd)
-  window.addEventListener('pointercancel', onResizeEnd)
-}
+  el.classList.add('is-dragging')
+  document.body.setAttribute('data-drag-active', 'true')
 
-function onResizeMove(e) {
-  if (!resizeState) return
-  const dx = e.clientX - resizeState.cx
-  const dy = e.clientY - resizeState.cy
-  const { moduleId, styleKey } = resizeState
-
-  if (resizeState.bubble) {
-    /* 气泡：直径 px（number size）→ resolveBubbleSize 消费 → --d 实时生效 */
-    const d = clamp(Math.round(resizeState.startW + Math.max(dx, dy)), 40, 220)
-    setElementStyle(moduleId, styleKey, { size: d })
-  } else {
-    /* 通用元素：只写宽度（高度自动回流，避免文字被裁剪） */
-    const w = clamp(Math.round(resizeState.startW + dx), 32, 1200)
-    setElementStyle(moduleId, styleKey, { size: { w, unit: 'px' } })
+  function onMove(ev) {
+    if (!dragState) return
+    const dx = ev.clientX - dragState.cx
+    const dy = ev.clientY - dragState.cy
+    if (!dragState.moved && Math.abs(dx) + Math.abs(dy) > 3) dragState.moved = true
+    /* 预览用 transform：跟手移动，不触发页面重排 */
+    dragState.el.style.transform = `translate3d(${dx}px, ${dy}px, 0)`
   }
-  schedule() /* 元素尺寸变化 → 高亮框跟随 */
+  function finish() {
+    if (!dragState) return
+    const { el: target, container: cont, moduleId: m, elementKey: k, w, origTransform, pointerId, moved } = dragState
+    /* 清理拖拽态（但保留 transform 预览：元素停在拖后位置，等确认/撤销） */
+    target.classList.remove('is-dragging')
+    document.body.removeAttribute('data-drag-active')
+    clearDragHandlers()
+    try { target.releasePointerCapture?.(pointerId) } catch (_) {}
+    dragState = null
+    /* 只是点了一下手柄（没拖动）→ 恢复原 transform，不产生待确认位置 */
+    if (!moved) {
+      target.style.transform = origTransform
+      return
+    }
+    /* 先取最终视觉 rect（transform 仍生效 → 含拖拽增量） */
+    const rect = target.getBoundingClientRect()
+    const c = cont.getBoundingClientRect()
+    const fx = clamp(rect.left - c.left, 0, Math.max(0, c.width - rect.width))
+    const fy = clamp(rect.top - c.top, 0, Math.max(0, c.height - rect.height))
+    /* 元素保持拖后位置（预览残留，等确认/撤销恢复） */
+    dragPreview = { el: target, origTransform }
+    /* 暂存待确认（不写 layout / 不持久化 / 不重排）；w = 拖拽前记录的像素宽度 */
+    stageElementPos(m, k, { x: fx, y: fy, w }, { width: c.width, height: c.height })
+    schedule() /* 高亮框跟随预览位置 */
+  }
+
+  dragHandlers = { onMove, finish }
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', finish)
+  window.addEventListener('pointercancel', finish)
+  try { el.setPointerCapture?.(e.pointerId) } catch (_) {}
 }
 
-function onResizeEnd() {
-  if (!resizeState) return
-  push(resizeState.snapshot)      /* 整个拖拽 = 一个可撤销单元 */
-  resizeState = null
-  resizing.value = false
-  document.body.classList.remove('resizing-element')
-  window.removeEventListener('pointermove', onResizeMove)
-  window.removeEventListener('pointerup', onResizeEnd)
-  window.removeEventListener('pointercancel', onResizeEnd)
+/* ================= 分步确认：确认修改 / 撤销 ================= */
+function confirmPending() {
+  const p = pendingPos.value
+  if (!p) return
+  /* 历史包装的写入（% 换算 + 持久化 + 可撤销）→ editable.apply() 落地 absolute 定位；
+     宽度 w 一并写入，摆放后保持原宽（不被 fit-content 缩成内容宽） */
+  historySetElementPos(p.moduleId, p.elementKey, { x: p.x, y: p.y, w: p.w }, p.containerSize)
+  clearPreviewTransform()
+  cancelPendingPos()
+  schedule()
 }
+
+function cancelPending() {
+  const p = pendingPos.value
+  if (p) clearPreviewTransform()
+  cancelPendingPos()
+  schedule()
+}
+
+/* 选中变化 / 退出编辑态：自动撤销待确认位置（清除预览 + 清暂存） */
+watch([selection, editing], () => {
+  if (pendingPos.value) {
+    clearPreviewTransform()
+    cancelPendingPos()
+    schedule()
+  }
+})
 </script>
 
 <template>
   <div
     v-if="box.show"
     class="sel-box"
-    :class="{ 'sel-box--resizing': resizing }"
     :style="{
       transform: `translate(${box.x}px, ${box.y}px)`,
       width: box.w + 'px',
@@ -252,33 +287,48 @@ function onResizeEnd() {
   >
     <span v-if="label" class="sel-box__label">{{ label }}</span>
 
-    <!-- ======== 复制 / 粘贴工具条（需求 6） ======== -->
-    <div v-if="toolVisible" class="sel-tool" @pointerdown.stop @click.stop>
-      <button
-        type="button"
-        class="sel-tool__btn"
-        :title="copyL[lang]"
-        @click="doCopy"
-      >⧉ {{ copyL[lang] }}</button>
-      <button
-        type="button"
-        class="sel-tool__btn"
-        :class="{ 'sel-tool__btn--muted': !pasteEnabled }"
-        :disabled="!pasteEnabled"
-        :title="pasteL[lang]"
-        @click="doPaste"
-      >📋 {{ pasteL[lang] }}</button>
-      <span v-if="toolbarMsg" class="sel-tool__msg">{{ toolbarMsg }}</span>
+    <!-- ======== 选中框下方操作区：复制/粘贴工具条 + 拖拽确认/撤销条 ======== -->
+    <div class="sel-tools" @pointerdown.stop @click.stop>
+      <div v-if="toolVisible" class="sel-tool">
+        <button
+          type="button"
+          class="sel-tool__btn"
+          :title="copyL[lang]"
+          @click="doCopy"
+        >⧉ {{ copyL[lang] }}</button>
+        <button
+          type="button"
+          class="sel-tool__btn"
+          :class="{ 'sel-tool__btn--muted': !pasteEnabled }"
+          :disabled="!pasteEnabled"
+          :title="pasteL[lang]"
+          @click="doPaste"
+        >📋 {{ pasteL[lang] }}</button>
+        <span v-if="toolbarMsg" class="sel-tool__msg">{{ toolbarMsg }}</span>
+      </div>
+
+      <div v-if="pendingPos" class="sel-confirm">
+        <button
+          type="button"
+          class="sel-confirm__btn sel-confirm__btn--ok"
+          @click="confirmPending"
+        >✓ {{ confirmL[lang] }}</button>
+        <button
+          type="button"
+          class="sel-confirm__btn sel-confirm__btn--no"
+          @click="cancelPending"
+        >✕ {{ cancelL[lang] }}</button>
+      </div>
     </div>
 
-    <!-- ======== 右下角缩放手柄（元素级选中 · 需求 6） ======== -->
+    <!-- ======== 右下角拖拽摆放手柄（元素级选中 + 模块开启拖拽摆放） ======== -->
     <span
-      v-if="handleVisible"
-      class="sel-resize"
-      :title="handleL[lang]"
-      role="slider"
-      aria-orientation="diagonal"
-      @pointerdown.stop="onResizeStart"
+      v-if="dragHandleVisible"
+      class="sel-drag"
+      role="button"
+      :title="dragL[lang]"
+      :aria-label="dragL[lang]"
+      @pointerdown.stop="onDragStart"
     ></span>
   </div>
 </template>
@@ -298,11 +348,6 @@ function onResizeEnd() {
     inset 0 0 16px rgba(55, 217, 242, 0.12);
   transition: transform 0.12s var(--ease-out, ease-out);
 }
-/* 拖缩放时：去掉过渡，跟手跟随 */
-.sel-box--resizing {
-  transition: none;
-  border-style: dashed;
-}
 .sel-box__label {
   position: absolute;
   top: -24px;
@@ -320,11 +365,18 @@ function onResizeEnd() {
   white-space: nowrap;
 }
 
-/* ================= 复制 / 粘贴工具条（需求 6） ================= */
-.sel-tool {
+/* ================= 选中框下方操作区（工具条 + 拖拽确认条） ================= */
+.sel-tools {
   position: absolute;
   top: calc(100% + 6px);
   left: -2px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: auto; /* 操作区可交互（父框是 pointer-events:none） */
+}
+.sel-tool {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -333,7 +385,6 @@ function onResizeEnd() {
   background: rgba(8, 12, 24, 0.94);
   border: 1px solid rgba(130, 165, 255, 0.32);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 0 14px rgba(55, 217, 242, 0.18);
-  pointer-events: auto; /* 工具条可交互（父框是 pointer-events:none） */
   white-space: nowrap;
 }
 .sel-tool__btn {
@@ -361,8 +412,49 @@ function onResizeEnd() {
   color: rgba(180, 220, 255, 0.9);
 }
 
-/* ================= 右下角缩放手柄（需求 6） ================= */
-.sel-resize {
+/* ================= 拖拽摆放确认 / 撤销条 ================= */
+.sel-confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(8, 12, 24, 0.96);
+  border: 1px solid rgba(55, 217, 242, 0.5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 14px rgba(55, 217, 242, 0.25);
+  white-space: nowrap;
+}
+.sel-confirm__btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #e9effc;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out, ease-out);
+}
+.sel-confirm__btn--ok {
+  background: rgba(52, 211, 153, 0.16);
+  border: 1px solid rgba(52, 211, 153, 0.55);
+}
+.sel-confirm__btn--ok:hover {
+  color: #06121a;
+  background: #34d399;
+  border-color: transparent;
+}
+.sel-confirm__btn--no {
+  background: rgba(248, 113, 113, 0.16);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+}
+.sel-confirm__btn--no:hover {
+  color: #06121a;
+  background: #f87171;
+  border-color: transparent;
+}
+
+/* ================= 右下角拖拽摆放手柄（取代原缩放光标） ================= */
+.sel-drag {
   position: absolute;
   right: -7px;
   bottom: -7px;
@@ -370,23 +462,21 @@ function onResizeEnd() {
   height: 15px;
   border-radius: 50%;
   pointer-events: auto; /* 手柄可交互 */
-  cursor: nwse-resize;
+  cursor: grab;
   background: #06121a;
   border: 2px solid #37d9f2;
   box-shadow: 0 0 0 2px rgba(8, 12, 24, 0.6), 0 0 12px rgba(55, 217, 242, 0.65);
   touch-action: none;
 }
-.sel-resize::after {
+.sel-drag::after {
   content: '';
   position: absolute;
-  inset: 3px;
-  border-right: 2px solid #37d9f2;
-  border-bottom: 2px solid #37d9f2;
-  border-radius: 0 0 3px 0;
+  inset: 2px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2337d9f2" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><path d="m8 6 4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4"/></svg>') center/contain no-repeat;
 }
-.sel-resize:hover {
+.sel-drag:hover {
   transform: scale(1.2);
-  background: #37d9f2;
+  border-color: #a5f3fc;
 }
-.sel-resize:hover::after { border-color: #06121a; }
+.sel-drag:active { cursor: grabbing; }
 </style>

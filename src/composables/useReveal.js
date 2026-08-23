@@ -10,12 +10,13 @@
      - revealRef : 绑定到根元素的 ref（ScrollTrigger 监听它进入视口）
      - revealed  : ref<boolean>，进入视口后为 true，可用于联动其它逻辑
      - cleanup   : 手动清理函数（组件卸载时自动调用，一般无需手动）
+     - replay    : 立即重播入场动画（不依赖滚动位置，见 revealElement）
 
    【模式二 · 直接传元素】
      import { useReveal } from '@/composables/useReveal'
      const { cleanup, revealed } = useReveal(elOrRef, { animation: 'fade-up', delay: 0 })
      - elOrRef : 原生元素 / Vue ref / 函数 ref
-     - 返回 cleanup 清理函数 + revealed 状态 ref
+     - 返回 cleanup 清理函数 + revealed 状态 ref + replay 重播函数
 
    预设列表见 REVEAL_PRESETS。
    覆盖 config 的 ALLOWED_ANIMATIONS（fade-up/fade-down/fade-left/
@@ -142,11 +143,21 @@ function preHideState(el, animName) {
  * 环境里速记偶尔不生效），改为「显式 ScrollTrigger.create + 手动
  * 关联 tween」，行为等价且稳定。
  *
+ * 返回 { cleanup, replay }：
+ *   - cleanup : 清理 tween + ScrollTrigger 并清内联样式（卸载时调用）
+ *   - replay  : 立即重播入场动画（不依赖滚动位置）：
+ *                1) kill 当前 tween/ScrollTrigger（重建后引用更新，可反复调用）
+ *                2) revealedRef 置 false（若传了）
+ *                3) preHideState 把元素设回初始隐藏态
+ *                4) 立即创建并播放到终态的 tween（时长/延迟/缓动沿用 opts，
+ *                   onComplete 置 revealedRef true）；'none' 直接 clearProps 且
+ *                   revealed true；简化模式 opacity 0→1
+ *
  * @param {HTMLElement} el            目标元素
  * @param {string}      animName      动画名
  * @param {object}      [opts]        { delay, duration, once, ease, start }
  * @param {object}      [revealedRef] 可选：ref<boolean>，进入视口时置 true
- * @returns {() => void} 清理函数
+ * @returns {{cleanup: () => void, replay: () => void}}
  */
 function revealElement(el, animName, opts = {}, revealedRef) {
   const name = resolveAnimName(animName)
@@ -162,52 +173,94 @@ function revealElement(el, animName, opts = {}, revealedRef) {
   const baseTrigger = { trigger: el, start, once }
   const onEnter = () => setRevealed(true)
 
+  /* 当前活跃动画引用：replay 重建 tween 后更新，可反复调用 */
+  let tween = null
+  let scrollTrigger = null
+  const killActive = () => {
+    scrollTrigger?.kill()
+    scrollTrigger = null
+    tween?.kill()
+    tween = null
+  }
+
+  /* 常规 cleanup：kill 当前动画 + 清内联样式 */
+  const cleanup = () => {
+    killActive()
+    gsap.set(el, { clearProps: 'all' })
+  }
+
+  /**
+   * 重播助手：先快速淡出（避免硬切屏闪），再从初始态播放入场动画。
+   * - preHide : onComplete 时调用（把元素/子元素设回初始隐藏态）
+   * - play    : onComplete 时调用（真正播放入场 tween）
+   * 注意：只在元素级 opacity 上淡出，不触碰内部元素的独立 reveal
+   * 状态（内部项由模块 revealed 驱动，重播时保持可见，避免双重动画屏闪）。
+   */
+  const fadeThen = (preHide, play) => {
+    killActive()
+    setRevealed(false)
+    gsap.to(el, {
+      opacity: 0,
+      duration: 0.16,
+      ease: 'power1.in',
+      overwrite: 'auto',
+      onComplete: () => {
+        if (preHide) preHide()
+        play()
+      }
+    })
+  }
+
   /* 1) 无动画：直接显示 */
   if (name === 'none') {
     gsap.set(el, { clearProps: 'all' })
     setRevealed(true)
-    return () => {}
+    return {
+      cleanup: () => {},
+      replay: () => { gsap.set(el, { clearProps: 'all' }); setRevealed(true) }
+    }
   }
 
   /**
-   * 建 tween + ScrollTrigger 并手动关联。
+   * 建 tween + ScrollTrigger 并手动关联（首次进入视口的原行为）。
+   * 创建的引用写入外层 tween/scrollTrigger 变量，replay 才能 kill 到。
    * @param {object} from  from 状态
    * @param {object} to    to 状态（含 duration/delay/ease/onComplete）
    * @param {object} [extraTriggerVars] 额外的 trigger 配置
-   * @returns {{tween: object, scrollTrigger: object}}
+   * @returns {object} 创建的 tween
    */
   const link = (from, to, extraTriggerVars = {}) => {
-    const tween = gsap.fromTo(el, from, to)
-    const scrollTrigger = ScrollTrigger.create({
+    const t = gsap.fromTo(el, from, to)
+    const st = ScrollTrigger.create({
       ...baseTrigger,
       ...extraTriggerVars,
-      animation: tween,
+      animation: t,
       onEnter
     })
     /* 手动关联（防御 gsap 3.15 在部分环境不写回 tween.scrollTrigger） */
-    tween.scrollTrigger = scrollTrigger
-    return { tween, scrollTrigger }
-  }
-
-  const cleanupOf = ({ tween, scrollTrigger }, targets) => () => {
-    scrollTrigger?.kill()
-    tween?.kill()
-    gsap.set(targets || el, { clearProps: 'all' })
+    t.scrollTrigger = st
+    tween = t
+    scrollTrigger = st
+    return t
   }
 
   /* 2) 简化模式（小屏 / 减少动态）：只做纯透明度，时长取 fast */
   if (shouldSimplifyMotion()) {
-    const a = link(
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration: ANIMATION_DURATION?.fast ?? 0.5,
-        delay,
-        ease: 'power1.out',
-        onComplete: () => setRevealed(true)
-      }
-    )
-    return cleanupOf(a)
+    const to = {
+      opacity: 1,
+      duration: ANIMATION_DURATION?.fast ?? 0.5,
+      delay,
+      ease: 'power1.out',
+      onComplete: () => setRevealed(true)
+    }
+    link({ opacity: 0 }, to)
+    return {
+      cleanup,
+      replay: () => fadeThen(
+        () => preHideState(el, animName), /* 简化模式：opacity 0 */
+        () => { tween = gsap.fromTo(el, { opacity: 0 }, { ...to }) }
+      )
+    }
   }
 
   /* 3) stagger-children：直接子元素错峰入场 */
@@ -215,39 +268,69 @@ function revealElement(el, animName, opts = {}, revealedRef) {
     const children = gsap.utils.toArray(el.children).filter((c) => c.nodeType === 1)
     /* 无子元素时退化为 fade-up */
     if (!children.length) {
-      const a = link(
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration, delay, ease, onComplete: () => setRevealed(true) }
-      )
-      return cleanupOf(a)
+      const to = {
+        opacity: 1, y: 0, duration, delay, ease,
+        onComplete: () => setRevealed(true)
+      }
+      link({ opacity: 0, y: 24 }, to)
+      return {
+        cleanup,
+        replay: () => fadeThen(
+          () => preHideState(el, animName),
+          () => { tween = gsap.fromTo(el, { opacity: 0, y: 24 }, { ...to }) }
+        )
+      }
     }
     gsap.set(children, { opacity: 0, y: 24 })
-    const tween = gsap.to(children, {
+    tween = gsap.to(children, {
       opacity: 1, y: 0,
       duration, delay, ease,
       stagger: 0.08,
       onComplete: () => setRevealed(true)
     })
-    const scrollTrigger = ScrollTrigger.create({ ...baseTrigger, animation: tween, onEnter })
+    scrollTrigger = ScrollTrigger.create({ ...baseTrigger, animation: tween, onEnter })
     tween.scrollTrigger = scrollTrigger
-    return cleanupOf({ tween, scrollTrigger }, children)
+    return {
+      cleanup: () => {
+        killActive()
+        gsap.set(children, { clearProps: 'all' })
+      },
+      replay: () => fadeThen(
+        () => {
+          /* 错峰：父容器淡出后先恢复其透明度，再隐藏子元素逐个错峰入场 */
+          gsap.set(el, { clearProps: 'opacity' })
+          preHideState(el, animName) /* stagger：隐藏子元素 */
+        },
+        () => {
+          tween = gsap.to(children, {
+            opacity: 1, y: 0,
+            duration, delay, ease,
+            stagger: 0.08,
+            onComplete: () => setRevealed(true)
+          })
+        }
+      )
+    }
   }
 
   /* 4) 常规预设：fromTo + ScrollTrigger */
   const preset = REVEAL_PRESETS[name]
-  const a = link(
-    preset.from,
-    {
-      ...preset.to,
-      duration,
-      delay,
-      ease,
-      onComplete: () => setRevealed(true)
-    },
-    /* once=false 时允许滚动离开后反向隐藏（回到初始态） */
-    once ? {} : { toggleActions: 'play none none reverse' }
-  )
-  return cleanupOf(a)
+  const to = {
+    ...preset.to,
+    duration,
+    delay,
+    ease,
+    onComplete: () => setRevealed(true)
+  }
+  /* once=false 时允许滚动离开后反向隐藏（回到初始态） */
+  link(preset.from, to, once ? {} : { toggleActions: 'play none none reverse' })
+  return {
+    cleanup,
+    replay: () => fadeThen(
+      () => preHideState(el, animName), /* 设回 preset.from */
+      () => { tween = gsap.fromTo(el, preset.from, { ...to }) }
+    )
+  }
 }
 
 /* ===================== 对外主入口 ===================== */
@@ -266,22 +349,46 @@ export function useReveal(animOrEl, options = {}) {
   /* -------- 模式二：直接传入元素 / ref -------- */
   if (typeof animOrEl !== 'string') {
     const revealed = ref(false)
-    const { animation = 'fade-up' } = options
+    /* 动画名放入「可变局部变量」：rebuild(nextAnim) 更新它，build 用最新值，
+       保证重建（重播）时拿到的是当前 animation，而非挂载时快照。 */
+    let animation = options.animation ?? 'fade-up'
     let cleanup = () => {}
+    let replay = () => {}
     let inited = false
+    /* 自增 buildId 令牌：防止快速多次 rebuild 时，旧的 rAF 回调在新
+       build 之后才执行、用旧动画覆盖新状态（rAF 里 id !== buildId 则跳过）。 */
+    let buildId = 0
 
-    const setup = (el) => {
-      if (!el || inited) return
+    /**
+     * build(el) — （重）建当前元素的滚动入场动画。
+     * 内部流程：teardown 旧的 cleanup/replay（kill 旧 tween/ScrollTrigger +
+     * 清内联样式）→ inited=true → revealed=false → 同步 preHideState（首帧即
+     * 隐藏态，防屏闪）→ 下一帧 revealElement(...) 建新动画并把 cleanup/replay
+     * 赋回。rebuild 复用同一逻辑，只是先更新 animation。
+     */
+    const build = (el) => {
+      if (!el) return
+      cleanup()
       inited = true
+      revealed.value = false
+      const id = ++buildId
       /* 关键：先同步把元素设为动画「初始隐藏态」——否则元素先以完整可见态
          渲染出首帧，再被下一帧隐藏并重新淡入，形成「闪一下再消失」的屏闪。
          这里同步 pre-hide 保证第一帧即为隐藏态。 */
       preHideState(el, animation)
       /* 延迟到下一帧，确保布局完成后再建 ScrollTrigger（见模式一注释） */
       requestAnimationFrame(() => {
-        if (!el.isConnected) return
-        cleanup = revealElement(el, animation, options, revealed)
+        if (!el.isConnected || id !== buildId) return
+        const r = revealElement(el, animation, options, revealed)
+        cleanup = r.cleanup
+        replay = r.replay
       })
+    }
+
+    /* 首挂载：只在未 init 时跑一次（行为不变，委托 build） */
+    const setup = (el) => {
+      if (!el || inited) return
+      build(el)
     }
 
     const el = resolveElement(animOrEl)
@@ -292,13 +399,26 @@ export function useReveal(animOrEl, options = {}) {
       onMounted(() => setup(resolveElement(animOrEl)))
     }
     onBeforeUnmount(() => cleanup())
-    return { cleanup, revealed }
+    return {
+      cleanup,
+      revealed,
+      replay: () => { if (resolveElement(animOrEl)) replay() },
+      /* 动画变化 → 重建：更新 animation 并对当前元素重新 build。
+         元素从 animOrEl / animOrEl.value 解析；拿不到就 no-op。 */
+      rebuild: (nextAnim) => {
+        const target = resolveElement(animOrEl)
+        if (!target) return
+        animation = nextAnim
+        build(target)
+      }
+    }
   }
 
   /* -------- 模式一：动画名字符串（ARCHITECTURE.md 契约） -------- */
   const anim = options.animation ?? animOrEl
   const revealed = ref(false)
   let cleanup = () => {}
+  let replay = () => {}
   let inited = false
   let currentEl = null
 
@@ -328,7 +448,9 @@ export function useReveal(animOrEl, options = {}) {
       preHideState(el, anim)
       requestAnimationFrame(() => {
         if (!el.isConnected) return
-        cleanup = revealElement(el, anim, options, revealed)
+        const r = revealElement(el, anim, options, revealed)
+        cleanup = r.cleanup
+        replay = r.replay
       })
     }
     currentEl = node || currentEl
@@ -337,5 +459,10 @@ export function useReveal(animOrEl, options = {}) {
 
   onBeforeUnmount(() => cleanup())
 
-  return { revealRef, revealed, cleanup }
+  return {
+    revealRef,
+    revealed,
+    cleanup,
+    replay: () => { if (currentEl) replay() }
+  }
 }

@@ -21,7 +21,9 @@ import { useAutoFit } from '@/composables/useAutoFit'
 import {
   registerModuleReveal,
   unregisterModuleReveal,
-  markModuleRevealed
+  markModuleRevealed,
+  registerModuleReplay,
+  replayModuleTextAnims
 } from '@/composables/moduleReveal'
 import { getModuleComponent } from '@/modules'
 import { isLayoutEnabled } from '@/composables/useLayout'
@@ -71,12 +73,30 @@ if (props.revealMode === 'deck') {
     if (v) markModuleRevealed(props.module.id)
   }, { immediate: true })
 } else {
-  const { revealed } = useReveal(sectionRef, {
+  const { revealed, replay, rebuild } = useReveal(sectionRef, {
     animation: props.module.animation,
-    start: 'top 88%'
+    /* 需求B：reveal 触发点改早——模块顶在视口底边下方 20% 视口高
+       （'top 120%'）时即开始入场动画，内容进入视口时已基本显示完，
+       消除「慢半拍」（原先 'top 88%' 太靠后，0.8s 动画在进入视口后才开播）。 */
+    start: 'top 120%'
   })
+  /* 需求A：入场动画变化 → 重建 reveal（重新隐藏并按新动画播）。
+     模块在视口内会自动重新入场，在视口外保持隐藏等滚到。 */
+  watch(() => props.module.animation, (a) => rebuild(a))
   watch(revealed, (v) => {
     if (v) markModuleRevealed(props.module.id)
+  })
+  /* 重播注册：控制台「重新播放」→ 重播该模块区块的入场动画（GSAP）。
+     ⚠️ 不再调用 resetModuleRevealed：内部元素（如经历卡片、技能气泡）由
+     revealed 驱动独立 CSS 过渡，若一并重置会与区块 GSAP 动画打架，造成
+     内容先淡出再淡入的「屏闪」。重播只针对区块入场（用户调整的
+     config.animation），内部内容保持可见、随区块整体入场。
+     ⚠️ 编辑态可验证：紧随入场之后强制重播本模块全部文字动画
+     （replayModuleTextAnims → TextReveal.forceStart），让用户切换
+     文字动画下拉后点「重新播放」即可看到效果。 */
+  registerModuleReplay(props.module.id, () => {
+    replay()
+    replayModuleTextAnims(props.module.id)
   })
 }
 
