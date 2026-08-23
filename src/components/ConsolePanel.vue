@@ -27,6 +27,7 @@ import {
 } from '@/composables/useConsole'
 import { useI18n } from '@/i18n'
 import { useSelection } from '@/composables/useSelection'
+import { exportStandaloneHtml } from '@/composables/useExport'
 import ModuleRail from './console/ModuleRail.vue'
 import ModuleEditorTab from './console/ModuleEditorTab.vue'
 import ModuleConfigBar from './console/ModuleConfigBar.vue'
@@ -109,7 +110,28 @@ const l = {
   edit: { zh: '编辑', en: 'Edit' },
   close: { zh: '收起面板', en: 'Close panel' },
   resize: { zh: '拖动调整面板宽度（320–720px）', en: 'Drag to resize panel (320–720px)' },
-  hint: { zh: '编辑即所见 · 实时预览', en: 'Edit → live preview' }
+  hint: { zh: '编辑即所见 · 实时预览', en: 'Edit → live preview' },
+  export: { zh: '导出', en: 'Export' },
+  exporting: { zh: '导出中…', en: 'Exporting…' },
+  exportTip: { zh: '导出为独立 HTML 文件（末尾附仓库地址）', en: 'Export as standalone HTML (repo link at the end)' },
+  exportFail: { zh: '导出失败，请查看控制台', en: 'Export failed — see console' }
+}
+
+/* ================= 导出独立成品 HTML（需求：导出功能） ================= */
+const exporting = ref(false)
+const exportError = ref('')
+async function onExport() {
+  if (exporting.value) return
+  exporting.value = true
+  exportError.value = ''
+  try {
+    await exportStandaloneHtml()
+  } catch (e) {
+    console.error('[export] 导出失败：', e)
+    exportError.value = l.exportFail[lang.value]
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
 
@@ -147,20 +169,31 @@ const l = {
         @pointerdown="onResizeStart"
       ></div>
 
-      <!-- 头部：标题 + 收起 -->
+      <!-- 头部：标题 + 导出 + 收起 -->
       <header class="console-panel__head">
         <div class="console-panel__title-wrap">
           <span class="console-panel__title">{{ l.panelTitle[lang] }}</span>
           <span class="console-panel__hint">{{ l.hint[lang] }}</span>
         </div>
-        <button
-          type="button"
-          class="console-panel__close"
-          :aria-label="l.close[lang]"
-          :title="l.close[lang]"
-          @click="closeConsole"
-        >✕</button>
+        <div class="console-panel__actions">
+          <button
+            type="button"
+            class="console-panel__export"
+            :disabled="exporting"
+            :aria-label="l.exportTip[lang]"
+            :title="l.exportTip[lang]"
+            @click="onExport"
+          >{{ exporting ? l.exporting[lang] : l.export[lang] }}</button>
+          <button
+            type="button"
+            class="console-panel__close"
+            :aria-label="l.close[lang]"
+            :title="l.close[lang]"
+            @click="closeConsole"
+          >✕</button>
+        </div>
       </header>
+      <p v-if="exportError" class="console-panel__export-err" role="alert">{{ exportError }}</p>
 
       <!-- 标签栏：编辑 / 主题 / 形态 / 全局 -->
       <nav class="console-tabs" role="tablist" :aria-label="l.panelTitle[lang]">
@@ -274,6 +307,42 @@ const l = {
 .console-fab:hover { filter: brightness(1.1); transform: translateY(-2px); }
 .console-fab__icon { font-size: var(--fs-md); line-height: 1; }
 .console-fab__text { font-weight: 700; }
+
+/* ================= 头部动作区：导出 + 收起 ================= */
+.console-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.console-panel__export {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--c-on-accent);
+  background: var(--c-grad);
+  border: 1px solid transparent;
+  box-shadow: var(--c-glow);
+  white-space: nowrap;
+  transition: filter var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.console-panel__export:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+.console-panel__export:active:not(:disabled) { transform: translateY(0); }
+.console-panel__export:disabled { opacity: 0.65; cursor: progress; }
+.console-panel__export-err {
+  margin: 0 0 6px;
+  padding: 5px 12px;
+  font-size: var(--fs-xs);
+  color: var(--c-danger);
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: var(--radius-sm);
+}
 
 /* ================= 左缘拉宽把手（需求 1） ================= */
 .console-panel__resize {

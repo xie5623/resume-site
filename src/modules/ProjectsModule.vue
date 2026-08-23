@@ -54,6 +54,13 @@ const PROJECTS = computed(() => {
 
 /* 卡片列数：variant b 用 3 列，其余 2 列 */
 const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid--3' : 'hm-proj__grid--2'))
+
+/* ===================== 项目自定义跳转链接（需求：项目经历可自定义网址） =====================
+   每个项目条目支持 demoUrl / githubUrl 字段（内容层配置，控制台可编辑）：
+   - linkOf(url)：空值/非字符串 → 回退 '#'（占位，行为与原来一致）
+   - extTarget(url)：http(s) 外链 → 新标签页打开；否则不设 target */
+const linkOf = (u) => (typeof u === 'string' && u.trim() !== '') ? u.trim() : '#'
+const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefined
 </script>
 
 <template>
@@ -86,8 +93,8 @@ const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid-
             <li v-for="tag in PROJECTS[0].tags" :key="tag" class="hm-proj__tag">{{ tag }}</li>
           </ul>
           <div class="hm-proj__links">
-            <a class="glass-btn glass-btn--accent" href="#" v-editable="ed('demo')">{{ T('demo') }}</a>
-            <a class="glass-btn" href="#" v-editable="ed('github')">{{ T('github') }}</a>
+            <a class="glass-btn glass-btn--accent" :href="linkOf(PROJECTS[0].demoUrl)" :target="extTarget(PROJECTS[0].demoUrl)" rel="noopener" v-editable="ed('demo')">{{ T('demo') }}</a>
+            <a class="glass-btn" :href="linkOf(PROJECTS[0].githubUrl)" :target="extTarget(PROJECTS[0].githubUrl)" rel="noopener" v-editable="ed('github')">{{ T('github') }}</a>
           </div>
         </div>
         <div class="hm-proj__feature-art" aria-hidden="true">
@@ -115,8 +122,8 @@ const gridClass = computed(() => (props.config.variant === 'b' ? 'hm-proj__grid-
             <li v-for="tag in p.tags" :key="tag" class="hm-proj__tag">{{ tag }}</li>
           </ul>
           <div class="hm-proj__links">
-            <a class="hm-proj__link" href="#" v-editable="ed('demo')">{{ T('demo') }} →</a>
-            <a class="hm-proj__link" href="#" v-editable="ed('github')">{{ T('github') }}</a>
+            <a class="hm-proj__link" :href="linkOf(p.demoUrl)" :target="extTarget(p.demoUrl)" rel="noopener" v-editable="ed('demo')">{{ T('demo') }} →</a>
+            <a class="hm-proj__link" :href="linkOf(p.githubUrl)" :target="extTarget(p.githubUrl)" rel="noopener" v-editable="ed('github')">{{ T('github') }}</a>
           </div>
         </article>
       </div>

@@ -19,6 +19,9 @@
        （响应式 store，控制台写它 → 页面实时变），不要直接改本文件。
    ============================================================ */
 
+/* 项目仓库地址：导出成品的末尾署名链接指向这里 */
+export const REPO_URL = 'https://github.com/hang5623/resume-site'
+
 /* 允许的模块 id（注册表校验用） */
 export const MODULE_IDS = [
   'hero', 'about', 'skills', 'experience',

@@ -57,20 +57,28 @@ export function useAutoFit(target, { baseFontScale = 1 } = {}) {
     const maxH = vh * 1.05          // 整块高度的舒适上限（约一屏）
     const minH = vh * 0.35          // 低于此高度视为内容稀疏
     const shrinkEnter = maxH * 1.08 // 进入「缩小」模式的滞回上沿
-    const shrinkExit = maxH * 0.9   // 退出「缩小」模式的滞回下沿
+    /* 注：shrinkExit（退出缩小的滞回下沿）已废弃——
+       恢复判定改为「按当前 scale 折算回全字号高度」，见下方 last<1 分支 */
 
     let next
-    if (last < 1) {
-      /* 当前已处于缩小态：只有缩回 10% 余量才恢复原字号 */
-      next = scrollH < shrinkExit
-        ? 1
-        : clamp(maxH / scrollH, FONT_SCALE_RANGE.min, 1)
-    } else if (scrollH > shrinkEnter) {
-      /* 内容多：按比例缩小，让整块高度 ≈ 一屏 */
-      next = clamp(maxH / scrollH, FONT_SCALE_RANGE.min, 1)
+    if (scrollH > shrinkEnter) {
+      /* 内容超高 → 按比例缩小，让整块高度 ≈ 一屏。
+         已在缩小态时只允许继续缩小、不允许回弹（Math.min），
+         否则在「连 0.8 最小字号都放不下」的超高区，会 0.8↔0.9 来回抖 */
+      const target = clamp(maxH / scrollH, FONT_SCALE_RANGE.min, 1)
+      next = last < 1 ? Math.min(last, target) : target
+    } else if (last < 1) {
+      /* 已处于缩小态：保持不动，直到「全字号下的高度」也不越界才恢复。
+         scrollH / last 估算「全字号高度」：仍 ≥ shrinkEnter → 保持缩小，
+         否则缩到 ≈maxH 时会被下一帧误判成「已恢复」→ 再缩小，来回震荡 */
+      next = (scrollH / last) < shrinkEnter ? 1 : last
     } else if (clientH < minH) {
       /* 内容很少：轻微放大 */
       next = clamp(1.15, FONT_SCALE_RANGE.min, FONT_SCALE_RANGE.max)
+    } else if (last > 1) {
+      /* 已处于放大态：保持，直到「全字号高度」不再稀疏才恢复。
+         clientH / last 估算「全字号高度」：超过 minH 才恢复 1 */
+      next = (clientH / last) > minH ? 1 : last
     } else {
       next = 1
     }

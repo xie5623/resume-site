@@ -4,16 +4,17 @@
    作用：全局「当前设备」状态 + 真实设备推断。
    - 桌面版 / 手机版两套模板 + 内容覆盖的切分依据（DEVICE 维度）。
    - device：'desktop' | 'mobile'（编辑器「预览设备模拟」改它）
-   - localStorage 持久化（key: resume-site.device）
+   - 手动覆盖【会话内】有效（不持久化；旧 localStorage key resume-site.device 已弃用）
    - 真实设备规则（供预览端自动选模板；手动切换优先）：
        ≥1024 桌面；768–1023 平板 → 桌面；<768 手机
    - 手动切换（编辑器模拟视口）优先于真实推断：
-       setDevice('mobile') 后一直按 mobile 渲染，
-       直到 clearDeviceOverride() 回到「按真实视口自动推断」。
+       setDevice('mobile') 后本会话一直按 mobile 渲染，
+       直到 clearDeviceOverride() 回到「按真实视口自动推断」；
+       刷新/重新打开后按真实视口重新自动推断。
 
    API：
      useDevice() → {
-       device,              // ref<'desktop'|'mobile'> 手动模拟设备（持久化）
+       device,              // ref<'desktop'|'mobile'> 手动模拟设备（会话内有效，不持久化）
        setDevice(next),     // 手动切换设备（编辑器切桌面/手机视口）；标记手动覆盖
        clearDeviceOverride(), // 清除手动覆盖 → 按真实视口自动推断
        isDesktop,           // computed<boolean>
@@ -35,16 +36,14 @@ const store = typeof localStorage !== 'undefined' ? localStorage : null
 /* 是否手动切换过（模拟视口）：true → 用 device；false → 按真实视口推断 */
 const manual = ref(false)
 
+/* 手动设备覆盖改为【会话内】有效（不持久化）：
+   每次打开按真实视口自动推断——手机→mobile、桌面→desktop，
+   避免上次残留的桌面覆盖让手机端一直渲染桌面布局（用户设计要求）。 */
 function detectInitial() {
-  const saved = store?.getItem(STORAGE_KEY)
-  if (saved && DEVICE_IDS.includes(saved)) {
-    manual.value = true
-    return saved
-  }
   return DEFAULT_DEVICE
 }
 
-/** 当前设备（手动模拟优先；持久化） */
+/** 当前设备（手动模拟优先；不持久化） */
 export const device = ref(detectInitial())
 
 /* 真实视口宽度（resize 跟踪，供 effectiveDevice 自动推断） */
@@ -72,7 +71,6 @@ export function setDevice(next) {
   if (!DEVICE_IDS.includes(next)) return
   manual.value = true
   device.value = next
-  store?.setItem(STORAGE_KEY, next)
 }
 
 /** 清除手动覆盖：回到按真实视口自动推断（平板归桌面） */

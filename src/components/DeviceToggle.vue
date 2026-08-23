@@ -7,7 +7,8 @@
  *   模块列表、顺序、动画、字号、变体各自独立，实时切换。
  * - App.vue 依据 device 决定预览视口：桌面 = 整页等比缩放；手机 =
  *   390px 手机视口框架再等比缩放适配面板左侧空间。
- * - 手动切换持久化（resume-site.device）；样式仿 ModeToggle（玻璃分段）。
+ * - 手动切换为【会话内】有效、不持久化（旧 key resume-site.device 已弃用）；
+ *   刷新后按真实视口自动推断（手机→mobile、桌面→desktop）。样式仿 ModeToggle（玻璃分段）。
  */
 import { useDevice } from '@/composables/useDevice'
 import { useI18n } from '@/i18n'

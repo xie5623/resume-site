@@ -112,6 +112,8 @@ const KEY_LABELS = {
   company:   { zh: '公司',   en: 'Company' },
   period:    { zh: '时间',   en: 'Period' },
   desc:      { zh: '描述',   en: 'Description' },
+  demoUrl:   { zh: '演示链接', en: 'Demo URL' },
+  githubUrl: { zh: '源码链接', en: 'Source URL' },
   tag:       { zh: '标签',   en: 'Tag' },
   tags:      { zh: '标签',   en: 'Tags' },
   links:     { zh: '链接',   en: 'Links' },

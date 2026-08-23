@@ -217,7 +217,7 @@ const T = (key) => get(version.value, props.lang, `hero.${key}`)  // 命名空�
 |------|------|------|-----------|
 | `useTheme()` | `themes/useTheme.js` | 当前主题 + 应用 | `resume-site.theme` |
 | `useVersion()` | `composables/useVersion.js` | 当前模板 id（版本=模板） | `resume-site.version` |
-| `useDevice()` | `composables/useDevice.js` | 当前设备（desktop/mobile，预览模拟） | `resume-site.device` |
+| `useDevice()` | `composables/useDevice.js` | 当前设备（desktop/mobile，预览模拟） | —（会话内，不持久化；旧 key `resume-site.device` 已弃用） |
 | `useTemplates()` | `composables/useTemplates.js` | 模板模块编排（运行时编辑） | `resume-site.templates` |
 | `useContent()` | `content/useContent.js` | 页面文字（运行时编辑） | `resume-site.content` |
 | `useI18n()` | `i18n/index.js` | 语言 + `t()` | `resume-site.lang` |
@@ -430,7 +430,7 @@ import { useDevice } from '@/composables/useDevice'
 const { device, setDevice, clearDeviceOverride, isDesktop, isMobile,
         inferDeviceFromWidth, effectiveDevice } = useDevice()
 
-setDevice('mobile') / setDevice('desktop')   // 编辑器切桌面/手机视口（模拟，持久化 resume-site.device）
+setDevice('mobile') / setDevice('desktop')   // 编辑器切桌面/手机视口（模拟，会话内有效，不持久化）
 clearDeviceOverride()                        // 回到按真实视口自动推断
 inferDeviceFromWidth(720)                    // 真实设备规则：<768 → mobile；≥768 → desktop（含平板）
 effectiveDevice                              // computed：手动模拟优先，否则按真实视口推断
@@ -438,7 +438,7 @@ effectiveDevice                              // computed：手动模拟优先，
 
 - **平板规则**：视口 ≥1024 桌面；768–1023 平板 → 默认桌面；<768 手机。
   此规则用于「真实设备」推断（preview 自动选模板）；手动切换（编辑器模拟）优先。
-- 持久化键：`resume-site.device`。
+- 手动覆盖为**会话内**有效、不持久化（旧 key `resume-site.device` 已弃用）；刷新/重新打开后按真实视口自动推断。
 
 ### 12.2 模板层双端拆分（`useTemplates.js` 扩展）
 
