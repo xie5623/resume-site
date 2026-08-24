@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * SkillsModule — 专业技能（id: skills）
  * 四种布局变体（config.variant 切换）：
@@ -180,7 +180,7 @@ function edItem(i, s) {
   text-transform: uppercase;
   color: var(--accent-cyan);
 }
-.hm-skills__title { font-size: calc(var(--fs-2xl) * var(--fs-scale)); }
+.hm-skills__title { font-size: var(--fs-2xl); }
 .hm-skills__line {
   width: 56px; height: 3px;
   border-radius: var(--radius-pill);
@@ -400,7 +400,7 @@ function edItem(i, s) {
    手机版编排 skills 用标签云 variant c（少占高度）。 */
 .hm-skills.is-mobile { padding: var(--space-6) 0; }
 .hm-skills.is-mobile .hm-skills__head { margin-bottom: var(--space-6); }
-.hm-skills.is-mobile .hm-skills__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-skills.is-mobile .hm-skills__title { font-size: var(--fs-xl); }
 .hm-skills.is-mobile .hm-skills__bars { grid-template-columns: 1fr; gap: var(--space-3); }
 .hm-skills.is-mobile .hm-skills__bar { padding: var(--space-4); }
 .hm-skills.is-mobile .hm-skills__rings { grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * FooterModule — 页脚（占位内容）
  * 契约：props = { config, lang }；revealed 由 App 装配层驱动 + TextReveal。
@@ -159,14 +159,14 @@ function backToTop() {
   min-width: 0;
 }
 .footer__name {
-  font-size: calc(var(--fs-lg) * var(--fs-scale, 1));
+  font-size: var(--fs-lg);
   font-weight: 800;
   display: inline-block;
 }
 .footer__tagline {
   margin: var(--space-2) 0 0;
   color: var(--text-muted);
-  font-size: calc(var(--fs-sm) * var(--fs-scale, 1));
+  font-size: var(--fs-sm);
 }
 
 .footer__socials {

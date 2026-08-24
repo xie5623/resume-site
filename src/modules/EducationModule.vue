@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * EducationModule — 教育背景（占位内容）
  * 契约：props = { config, lang }；revealed 由 App 装配层驱动 + TextReveal。
@@ -33,7 +33,9 @@ const { ed } = useEditableElement(props.config.id, [
   { key: 'kicker', label: { zh: '眉标', en: 'Kicker' }, type: 'text' },
   { key: 'title', label: { zh: '标题', en: 'Title' }, type: 'text' },
   { key: 'subtitle', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
-  { key: 'items', label: { zh: '教育列表', en: 'Education items' }, type: 'list' }
+  { key: 'items', label: { zh: '教育列表', en: 'Education items' }, type: 'list' },
+  { key: 'more.showMore', label: { zh: '正在丰富中·显示', en: 'More card · show' }, type: 'text' },
+  { key: 'more.text', label: { zh: '正在丰富中·文案', en: 'More card · text' }, type: 'text' }
 ])
 
 /* ===================== 内容层（education 命名空间，跟随模板+语言，可运行时编辑） ===================== */
@@ -82,10 +84,10 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
       </li>
     </ol>
 
-    <!-- ======== 正在丰富中占位卡（更多经历整理中） ======== -->
-    <div class="edu__more" aria-label="正在丰富中">
+    <!-- ======== 正在丰富中占位卡（可选项：内容层 more.showMore 控制显示/隐藏） ======== -->
+    <div v-if="T('more.showMore') !== false" class="edu__more" aria-label="正在丰富中">
       <span class="edu__more-dots" aria-hidden="true">···</span>
-      <span class="edu__more-text">正在丰富中</span>
+      <span class="edu__more-text" v-editable="ed('more.text')">{{ T('more.text') || '正在丰富中' }}</span>
     </div>
   </section>
 </template>
@@ -113,11 +115,11 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   margin-bottom: var(--space-3);
 }
 .module__title {
-  font-size: calc(var(--fs-xl) * var(--fs-scale, 1));
+  font-size: var(--fs-xl);
   margin-bottom: var(--space-2);
 }
 .module__subtitle {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   color: var(--text-secondary);
   margin: 0;
 }
@@ -195,19 +197,19 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   padding: 2px 10px;
 }
 .edu__school {
-  font-size: calc(var(--fs-lg) * var(--fs-scale, 1));
+  font-size: var(--fs-lg);
   margin-bottom: var(--space-1);
 }
 .edu__major {
   font-weight: 600;
   color: var(--accent-purple);
   margin-bottom: var(--space-2);
-  font-size: calc(var(--fs-base) * var(--fs-scale, 1));
+  font-size: var(--fs-base);
 }
 .edu__desc {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(var(--fs-sm) * var(--fs-scale, 1));
+  font-size: var(--fs-sm);
 }
 
 /* ---------- 变体 b：卡片栅格 ---------- */
@@ -228,7 +230,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .edu.is-mobile { padding: var(--space-6) 0; }
 .edu.is-mobile .module__head { margin-bottom: var(--space-6); }
-.edu.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.edu.is-mobile .module__title { font-size: var(--fs-xl); }
 .edu.is-mobile .edu__item { padding-left: calc(var(--space-5) + 6px); margin-bottom: var(--space-4); }
 .edu.is-mobile .edu__card { padding: var(--space-4); }
 .edu.is-mobile .edu--b .edu__timeline { grid-template-columns: 1fr; gap: var(--space-4); }

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * ContactModule — 联系方式（占位内容）
  * 契约：props = { config, lang }；revealed 由 App 装配层驱动 + TextReveal。
@@ -241,16 +241,16 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   margin-bottom: var(--space-3);
 }
 .module__title {
-  font-size: calc(var(--fs-xl) * var(--fs-scale, 1));
+  font-size: var(--fs-xl);
   margin-bottom: var(--space-2);
 }
 .module__subtitle {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   color: var(--text-secondary);
   margin: 0;
 }
 .contact__subhead {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   margin-bottom: var(--space-4);
 }
 
@@ -315,7 +315,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   text-transform: uppercase;
 }
 .contact__value {
-  font-size: calc(var(--fs-sm) * var(--fs-scale, 1));
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   /* 仅在必要时断行，避免邮箱/GitHub 长串被 break-all 硬切 */
   overflow-wrap: anywhere;
@@ -389,7 +389,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .contact.is-mobile { padding: var(--space-6) 0; }
 .contact.is-mobile .module__head { margin-bottom: var(--space-6); }
-.contact.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.contact.is-mobile .module__title { font-size: var(--fs-xl); }
 .contact.is-mobile .contact__layout { grid-template-columns: 1fr; gap: var(--space-5); }
 .contact.is-mobile .contact__link-grid { grid-template-columns: 1fr; gap: var(--space-3); }
 .contact.is-mobile .contact__link { padding: var(--space-3); }

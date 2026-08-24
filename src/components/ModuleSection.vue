@@ -106,6 +106,20 @@ if (props.revealMode === 'deck') {
    autoScale，fontScale/emphasize 在此响应式乘算。 */
 const { scale: autoScale } = useAutoFit(sectionRef)
 const clampScale = (v) => Math.min(1.9, Math.max(0.7, v))
+/* 字号令牌基础值（与 tokens.css 的 --fs-* 一致；这里在模块作用域内
+   重新按「当前 --fs-scale」定义，使【所有】用 var(--fs-*) 的元素都随
+   模块字号缩放。注：CSS 自定义属性在「定义处」求值——:root 里
+   --fs-sm: calc(0.875rem * var(--fs-scale)) 的 scale 固定为 :root 的 1，
+   不会跟随 section 的 --fs-scale，所以必须在 section 层重定义。 */
+const FS_BASE = {
+  '--fs-xs': 0.75,
+  '--fs-sm': 0.875,
+  '--fs-base': 1,
+  '--fs-md': 1.125,
+  '--fs-lg': 1.5,
+  '--fs-xl': 2,
+  '--fs-2xl': 3
+}
 const sectionStyle = computed(() => {
   /* 编辑态（控制台展开）或拖拽摆放时：禁用自动字号重算（autoScale 固定 1）。
      - 编辑态：改内容→高度变化→autoFit 重算→字号跳动，正是"每次改完屏闪"的
@@ -113,10 +127,15 @@ const sectionStyle = computed(() => {
      - 拖拽摆放：元素脱离流式，高度随摆放变化，同理禁用防震荡。
      成品态（收起控制台）恢复自动缩放。 */
   const eff = clampScale((props.module.fontScale ?? 1) * (editing.value || layoutOn.value ? 1 : autoScale.value) * (props.module.emphasize ? 1.4 : 1))
-  return {
+  const vars = {
     '--fs-scale': eff,        // 模块通用字号系数（模块组件消费）
     '--mod-font-scale': eff   // 兜底变量（阶段二契约：未读 --fs-scale 的模块用这个）
   }
+  /* 在模块作用域按当前 scale 重定义字号令牌 → 固定 var(--fs-*) 的元素也缩放 */
+  for (const [k, base] of Object.entries(FS_BASE)) {
+    vars[k] = `calc(${base}rem * ${eff})`
+  }
+  return vars
 })
 
 onBeforeUnmount(() => unregisterModuleReveal(props.module.id))

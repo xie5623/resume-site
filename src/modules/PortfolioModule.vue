@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * PortfolioModule — 作品集（占位内容，图块用纯 CSS 渐变）
  * 契约：props = { config, lang }；revealed 由 App 装配层驱动 + TextReveal。
@@ -109,11 +109,11 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   margin-bottom: var(--space-3);
 }
 .module__title {
-  font-size: calc(var(--fs-xl) * var(--fs-scale, 1));
+  font-size: var(--fs-xl);
   margin-bottom: var(--space-2);
 }
 .module__subtitle {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   color: var(--text-secondary);
   margin: 0;
 }
@@ -217,7 +217,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   padding: var(--space-4) var(--space-5);
 }
 .pf__title {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   margin-bottom: var(--space-1);
 }
 .pf__tag {
@@ -271,7 +271,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .pf.is-mobile { padding: var(--space-6) 0; }
 .pf.is-mobile .module__head { margin-bottom: var(--space-6); }
-.pf.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.pf.is-mobile .module__title { font-size: var(--fs-xl); }
 .pf.is-mobile .pf__grid,
 .pf.is-mobile .pf--b .pf__grid { grid-template-columns: 1fr; gap: var(--space-4); }
 .pf.is-mobile .pf--a .pf__item:first-child { grid-column: auto; }

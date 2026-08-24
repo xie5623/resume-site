@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * ExperienceModule — 工作经历 / 实习经历（id: experience）
  * 时间线布局（公司/职位/时间/描述），config.variant 切换：
@@ -34,7 +34,9 @@ const { ed } = useEditableElement(props.config.id, [
   { key: 'sub', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
   { key: 'items', label: { zh: '经历列表', en: 'Experience items' }, type: 'list' },
   { key: 'present', label: { zh: '现任徽章', en: 'Present badge' }, type: 'text' },
-  { key: 'now', label: { zh: '至今', en: 'Now' }, type: 'text' }
+  { key: 'now', label: { zh: '至今', en: 'Now' }, type: 'text' },
+  { key: 'more.showMore', label: { zh: '正在丰富中·显示', en: 'More card · show' }, type: 'text' },
+  { key: 'more.text', label: { zh: '正在丰富中·文案', en: 'More card · text' }, type: 'text' }
 ])
 
 /* ===================== 内容层（experience 命名空间，跟随模板+语言，可运行时编辑） ===================== */
@@ -124,10 +126,10 @@ function badgeText(job) {
         </li>
       </ol>
 
-      <!-- ======== 正在丰富中占位卡（更多经历整理中） ======== -->
-      <div class="hm-exp__more" aria-label="正在丰富中">
+      <!-- ======== 正在丰富中占位卡（可选项：内容层 more.showMore 控制显示/隐藏） ======== -->
+      <div v-if="T('more.showMore') !== false" class="hm-exp__more" aria-label="正在丰富中">
         <span class="hm-exp__more-dots" aria-hidden="true">···</span>
-        <span class="hm-exp__more-text">正在丰富中</span>
+        <span class="hm-exp__more-text" v-editable="ed('more.text')">{{ T('more.text') || '正在丰富中' }}</span>
       </div>
     </div>
   </section>
@@ -145,7 +147,7 @@ function badgeText(job) {
   text-transform: uppercase;
   color: var(--accent-cyan);
 }
-.hm-exp__title { font-size: calc(var(--fs-2xl) * var(--fs-scale)); }
+.hm-exp__title { font-size: var(--fs-2xl); }
 .hm-exp__line {
   width: 56px; height: 3px;
   border-radius: var(--radius-pill);
@@ -245,7 +247,7 @@ function badgeText(job) {
   padding: 2px 10px;
 }
 .hm-exp__role {
-  font-size: calc(var(--fs-lg) * var(--fs-scale));
+  font-size: var(--fs-lg);
   margin-bottom: var(--space-1);
 }
 .hm-exp__company {
@@ -315,7 +317,7 @@ function badgeText(job) {
    手机版编排 experience 用卡片列表 variant c（比时间线紧凑）。 */
 .hm-exp.is-mobile { padding: var(--space-6) 0; }
 .hm-exp.is-mobile .hm-exp__head { margin-bottom: var(--space-6); }
-.hm-exp.is-mobile .hm-exp__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-exp.is-mobile .hm-exp__title { font-size: var(--fs-xl); }
 .hm-exp.is-mobile .hm-exp__timeline::before { left: 14px; transform: none; }
 .hm-exp.is-mobile .hm-exp__item { grid-template-columns: 28px 1fr; gap: var(--space-3); }
 .hm-exp.is-mobile .hm-exp__node { left: 14px; top: 24px; width: 14px; height: 14px; }
@@ -324,7 +326,7 @@ function badgeText(job) {
 .hm-exp.is-mobile .hm-exp__list { gap: var(--space-3); }
 .hm-exp.is-mobile .hm-exp__list-card { flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
 .hm-exp.is-mobile .hm-exp__list-badge { min-width: 0; align-self: flex-start; }
-.hm-exp.is-mobile .hm-exp__role { font-size: calc(var(--fs-md) * var(--fs-scale)); }
+.hm-exp.is-mobile .hm-exp__role { font-size: var(--fs-md); }
 .hm-exp.is-mobile .hm-exp__desc { font-size: var(--fs-sm); }
 
 /* ==================== 正在丰富中占位卡 ==================== */

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * AboutModule — 关于我（id: about）
  * 段落占位文案 + 侧边信息卡（年龄/城市/邮箱占位）
@@ -140,7 +140,7 @@ const STATS = [
   text-transform: uppercase;
   color: var(--accent-cyan);
 }
-.hm-about__title { font-size: calc(var(--fs-2xl) * var(--fs-scale)); }
+.hm-about__title { font-size: var(--fs-2xl); }
 .hm-about__line {
   width: 56px; height: 3px;
   border-radius: var(--radius-pill);
@@ -155,7 +155,7 @@ const STATS = [
   align-items: start;
 }
 .hm-about__text {
-  font-size: calc(var(--fs-base) * var(--fs-scale));
+  font-size: var(--fs-base);
   color: var(--text-secondary);
   line-height: 1.9;
 }
@@ -192,7 +192,7 @@ const STATS = [
 }
 .hm-about__stat-value {
   display: block;
-  font-size: calc(var(--fs-xl) * var(--fs-scale));
+  font-size: var(--fs-xl);
   font-weight: 800;
   color: transparent;
   background: var(--accent-gradient);
@@ -224,7 +224,7 @@ const STATS = [
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .hm-about.is-mobile { padding: var(--space-6) 0; }
 .hm-about.is-mobile .hm-about__head { margin-bottom: var(--space-6); }
-.hm-about.is-mobile .hm-about__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-about.is-mobile .hm-about__title { font-size: var(--fs-xl); }
 .hm-about.is-mobile .hm-about__body { grid-template-columns: 1fr; gap: var(--space-6); }
 .hm-about.is-mobile .hm-about__text p { margin-bottom: var(--space-4); }
 .hm-about.is-mobile .hm-about__card { padding: var(--space-5); }

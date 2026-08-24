@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * CertificatesModule — 证书认证（占位内容）
  * 契约：props = { config, lang }；revealed 由 App 装配层驱动 + TextReveal。
@@ -105,11 +105,11 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   margin-bottom: var(--space-3);
 }
 .module__title {
-  font-size: calc(var(--fs-xl) * var(--fs-scale, 1));
+  font-size: var(--fs-xl);
   margin-bottom: var(--space-2);
 }
 .module__subtitle {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   color: var(--text-secondary);
   margin: 0;
 }
@@ -163,13 +163,13 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
   margin-bottom: var(--space-2);
 }
 .cert__name {
-  font-size: calc(var(--fs-md) * var(--fs-scale, 1));
+  font-size: var(--fs-md);
   line-height: 1.35;
 }
 .cert__issuer {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(var(--fs-sm) * var(--fs-scale, 1));
+  font-size: var(--fs-sm);
 }
 .cert__issuer-label {
   display: block;
@@ -218,7 +218,7 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .cert.is-mobile { padding: var(--space-6) 0; }
 .cert.is-mobile .module__head { margin-bottom: var(--space-6); }
-.cert.is-mobile .module__title { font-size: calc(var(--fs-xl) * var(--fs-scale, 1)); }
+.cert.is-mobile .module__title { font-size: var(--fs-xl); }
 .cert.is-mobile .cert__grid { grid-template-columns: 1fr; gap: var(--space-3); }
 .cert.is-mobile .cert__card { padding: var(--space-4); }
 .cert.is-mobile .cert__medal { width: 40px; height: 40px; }

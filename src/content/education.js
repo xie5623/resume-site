@@ -39,7 +39,8 @@ export const EDUCATION_CONTENT = {
             desc: '持续学习能力的占位示例，体现自我驱动的学习经历。',
             period: '2023'
           }
-        ]
+        ],
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -70,7 +71,8 @@ export const EDUCATION_CONTENT = {
             desc: 'A placeholder for self-driven learning to highlight continuous growth.',
             period: '2023'
           }
-        ]
+        ],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   },
@@ -91,7 +93,8 @@ export const EDUCATION_CONTENT = {
             desc: '主修课程等占位说明文字，用于展示教育卡片排版效果。可在控制台编辑为自己的真实学校与专业。',
             period: '2024.09 — 2028.06'
           }
-        ]
+        ],
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -108,7 +111,8 @@ export const EDUCATION_CONTENT = {
             desc: 'Placeholder for your real coursework. Edit this in the console to add your actual school and major.',
             period: 'Sep 2024 — Jun 2028'
           }
-        ]
+        ],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   }

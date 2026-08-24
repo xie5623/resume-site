@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * HeroModule — 首屏门面模块（id: hero）
  * 超大姓名 / 头衔 / 打字机标语 / 背景光效 / 滚动指示器
@@ -67,6 +67,16 @@ const roleText = computed(() => {
   const roles = T('roles')
   return Array.isArray(roles) ? (roles[roleIdx.value] ?? '') : ''
 })
+/* 导出用：完整 roles 数组（JSON 字符串）写进 data-export-roles，
+   导出成品用轻量脚本驱动轮播（见 useExport 注入的脚本）。 */
+const exportRoles = computed(() => {
+  try {
+    const roles = T('roles')
+    return Array.isArray(roles) ? JSON.stringify(roles) : '[]'
+  } catch (_) {
+    return '[]'
+  }
+})
 let timer = null
 
 function scheduleRole() {
@@ -129,7 +139,12 @@ const scrollTarget = computed(() => {
              即首屏"抽搐屏闪"元凶之一）。TextReveal 内部已 watch text
              自动重新拆分播放，直接改 :text 即可平滑轮换。
              caret='▍'：只有动态轮换行显示闪烁光标，静态标题（name 等）无光标。 -->
-        <p class="hm-hero__role" aria-live="polite" v-editable="ed('roles')">
+        <p
+          class="hm-hero__role"
+          aria-live="polite"
+          v-editable="ed('roles')"
+          :data-export-roles="exportRoles"
+        >
           <TextReveal
             :anim="config.textAnim"
             :text="roleText"
@@ -281,12 +296,12 @@ const scrollTarget = computed(() => {
 .hm-hero__greeting {
   margin-top: var(--space-8);
   margin-bottom: var(--space-2);
-  font-size: calc(var(--fs-lg) * var(--fs-scale));
+  font-size: var(--fs-lg);
   color: var(--text-secondary);
 }
 
 .hm-hero__name {
-  font-size: calc(var(--fs-2xl) * 1.9 * var(--fs-scale));
+  font-size: calc(var(--fs-2xl) * 1.9);
   line-height: 1.06;
   letter-spacing: -0.02em;
   font-weight: 800;
@@ -294,7 +309,7 @@ const scrollTarget = computed(() => {
 
 .hm-hero__role {
   margin-top: var(--space-5);
-  font-size: calc(var(--fs-xl) * var(--fs-scale));
+  font-size: var(--fs-xl);
   color: var(--accent-cyan);
   font-weight: 600;
   min-height: 1.4em;
@@ -303,7 +318,7 @@ const scrollTarget = computed(() => {
 .hm-hero__tagline {
   margin-top: var(--space-4);
   max-width: 34em;
-  font-size: calc(var(--fs-md) * var(--fs-scale));
+  font-size: var(--fs-md);
   color: var(--text-secondary);
 }
 
@@ -327,7 +342,7 @@ const scrollTarget = computed(() => {
 }
 .hm-hero__stat-value {
   display: block;
-  font-size: calc(var(--fs-xl) * var(--fs-scale));
+  font-size: var(--fs-xl);
   font-weight: 800;
   color: transparent;
   background: var(--accent-gradient);
@@ -446,8 +461,8 @@ const scrollTarget = computed(() => {
 }
 @media (max-width: 640px) {
   .hm-hero { padding: var(--space-8) 0 var(--space-10); }
-  .hm-hero__name { font-size: calc(var(--fs-2xl) * 1.25 * var(--fs-scale)); }
-  .hm-hero__role { font-size: calc(var(--fs-lg) * var(--fs-scale)); }
+  .hm-hero__name { font-size: calc(var(--fs-2xl) * 1.25); }
+  .hm-hero__role { font-size: var(--fs-lg); }
   .hm-hero__stats { flex-direction: column; }
   .hm-hero__scroll { display: none; }
 }
@@ -464,9 +479,9 @@ const scrollTarget = computed(() => {
 }
 .hm-hero.is-mobile .hm-hero__inner { gap: var(--space-6); }
 .hm-hero.is-mobile .hm-hero__greeting { margin-top: var(--space-6); }
-.hm-hero.is-mobile .hm-hero__name { font-size: calc(var(--fs-2xl) * 1.3 * var(--fs-scale)); }
-.hm-hero.is-mobile .hm-hero__role { font-size: calc(var(--fs-lg) * var(--fs-scale)); }
-.hm-hero.is-mobile .hm-hero__tagline { font-size: calc(var(--fs-base) * var(--fs-scale)); }
+.hm-hero.is-mobile .hm-hero__name { font-size: calc(var(--fs-2xl) * 1.3); }
+.hm-hero.is-mobile .hm-hero__role { font-size: var(--fs-lg); }
+.hm-hero.is-mobile .hm-hero__tagline { font-size: var(--fs-base); }
 .hm-hero.is-mobile .hm-hero__actions { flex-direction: column; }
 .hm-hero.is-mobile .hm-hero__actions .glass-btn {
   width: 100%;

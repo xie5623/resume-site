@@ -71,18 +71,22 @@ export function applyElementStyle(el, moduleId, key) {
     const factor = moduleScale ? resolved.fontScale / moduleScale : 1
     st.setProperty('--fs-scale', String(parentScale * factor))
 
-    /* 继承型元素字号补足（用户问题 2 根治）：自消费 --fs-scale 的元素
-       （title 等，font-size 用 calc(var(--fs-*) * var(--fs-scale))）字号会随
-       注入的 --fs-scale 自动缩放；但段落等【继承型】元素（computed 字号 =
-       父级字号，自身无 font-size 规则）不会重算——即使 --fs-scale 已注入。
-       判定继承型：el 计算字号 ≈ 父级计算字号（差值 < 0.01px）。
-       处理：显式写 font-size = 父级字号（已含模块级缩放）× 元素/模块比值
-       （= 基准字号 × 元素级缩放），让框随字号真正变大变小。 */
+    /* 元素级字号补足（用户问题 2 根治 + 问题 4：仍有元素不随字号变）：
+       自消费 --fs-scale 的元素（title 等，font-size 用 calc(var(--fs-*) *
+       var(--fs-scale))）字号会随注入的 --fs-scale 自动缩放；
+       但段落/标签/徽标等【不消费 --fs-scale】的元素（自身 font-size 是
+       固定 var(--fs-xs) 等，或继承父级）不会重算。
+       处理：显式写 font-size = 父级字号（含模块级缩放）× 元素/模块比值
+       （= 基准字号 × 元素级缩放），让【任意】元素框都随字号真正变大变小。
+       ——注意：不依赖「是否继承型」判断，固定字号元素同样生效。 */
     const elFs = parseFloat(getComputedStyle(el).fontSize)
     const pFs = parent ? parseFloat(getComputedStyle(parent).fontSize) : NaN
-    if (Number.isFinite(elFs) && Number.isFinite(pFs) && Math.abs(elFs - pFs) < 0.01) {
+    if (Number.isFinite(elFs) && Number.isFinite(pFs)) {
+      /* 父级基准（继承链上已含模块级 --fs-scale）：对自消费元素，父级字号
+         不含该元素自身的放大，用「父级 × 比值」能避免对已缩放元素再叠加 */
       const ratio = moduleScale ? resolved.fontScale / moduleScale : 1
-      st.fontSize = `${(elFs * ratio)}px`
+      /* 若元素自身已消费 --fs-scale（elFs 已含元素级），父级字号更能代表基准 */
+      st.fontSize = `${(pFs * ratio)}px`
     }
   } else {
     st.removeProperty('--fs-scale')

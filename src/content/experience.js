@@ -45,7 +45,8 @@ export const EXPERIENCE_CONTENT = {
             desc: '负责移动端 H5 页面开发与数据可视化图表实现，快速学习并落地多个小功能。',
             tags: ['JavaScript', 'ECharts', 'jQuery']
           }
-        ]
+        ],
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -84,7 +85,8 @@ export const EXPERIENCE_CONTENT = {
             desc: 'Developed mobile H5 pages and data-visualization charts; picked things up fast and shipped several small features.',
             tags: ['JavaScript', 'ECharts', 'jQuery']
           }
-        ]
+        ],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   },
@@ -97,7 +99,9 @@ export const EXPERIENCE_CONTENT = {
         sub: '实习经历整理中，后续将持续补充。',
         now: '至今',
         present: '近期',
-        items: []
+        items: [],
+        /* 「正在丰富中」占位卡：showMore=false 即隐藏（可选项） */
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -107,7 +111,8 @@ export const EXPERIENCE_CONTENT = {
         sub: 'Internship experience is being compiled — more to come soon.',
         now: 'Present',
         present: 'Recent',
-        items: []
+        items: [],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   }

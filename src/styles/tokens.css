@@ -58,7 +58,12 @@
   /* 等宽（代码/数字/标签） */
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
 
-  /* 字号刻度（避免 magic number） */
+  /* 字号刻度（避免 magic number）。
+     缩放机制：ModuleSection 在模块 section 作用域按当前 --fs-scale 重定义
+     这组令牌（calc(<base>rem * scale)），因此【任意】用 var(--fs-*) 的元素
+     （无论是否显式乘 scale）都随模块字号缩放（修复「部分元素不随字号变化」）。
+     :root 保持纯基础值（scale=1 无缩放）；不要在这里乘 var(--fs-scale)——
+     CSS 自定义属性在定义处求值，:root 的 calc 会固定为 1，且与 section 重定义冲突。 */
   --fs-xs: 0.75rem;    /* 12px  标签/角标 */
   --fs-sm: 0.875rem;   /* 14px  正文小 */
   --fs-base: 1rem;     /* 16px  正文 */
@@ -68,7 +73,7 @@
   --fs-2xl: 3rem;      /* 48px  首屏大标题 */
 
   /* 模块字号缩放系数：App 装配层(ModuleSection)注入，
-     模块内用 calc(var(--fs-*) * var(--fs-scale)) 消费；
+     模块内 calc(var(--fs-*) * var(--fs-scale)) 消费；
      默认 1，避免单独渲染模块时 calc 失效。 */
   --fs-scale: 1;
   /* 阶段二兜底变量：同 --fs-scale，语义更明确的别名 */

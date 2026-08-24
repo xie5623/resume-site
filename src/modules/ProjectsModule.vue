@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 /**
  * ProjectsModule — 项目经验（id: projects）
  * 卡片网格（占位项目名/描述/标签/链接），config.variant 切换：
@@ -32,7 +32,9 @@ const { ed } = useEditableElement(props.config.id, [
   { key: 'sub', label: { zh: '副标题', en: 'Subtitle' }, type: 'text' },
   { key: 'items', label: { zh: '项目列表', en: 'Project items' }, type: 'list' },
   { key: 'demo', label: { zh: '演示链接', en: 'Demo' }, type: 'text' },
-  { key: 'github', label: { zh: '仓库链接', en: 'GitHub' }, type: 'text' }
+  { key: 'github', label: { zh: '仓库链接', en: 'GitHub' }, type: 'text' },
+  { key: 'more.showMore', label: { zh: '正在丰富中·显示', en: 'More card · show' }, type: 'text' },
+  { key: 'more.text', label: { zh: '正在丰富中·文案', en: 'More card · text' }, type: 'text' }
 ])
 
 /* ===================== 内容层（projects 命名空间，跟随模板+语言，可运行时编辑） ===================== */
@@ -128,10 +130,10 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
         </article>
       </div>
 
-      <!-- ======== 正在丰富中占位卡（更多项目整理中） ======== -->
-      <div class="hm-proj__more" aria-label="正在丰富中">
+      <!-- ======== 正在丰富中占位卡（可选项：内容层 more.showMore 控制显示/隐藏） ======== -->
+      <div v-if="T('more.showMore') !== false" class="hm-proj__more" aria-label="正在丰富中">
         <span class="hm-proj__more-dots" aria-hidden="true">···</span>
-        <span class="hm-proj__more-text">正在丰富中</span>
+        <span class="hm-proj__more-text" v-editable="ed('more.text')">{{ T('more.text') || '正在丰富中' }}</span>
       </div>
     </div>
   </section>
@@ -149,7 +151,7 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
   text-transform: uppercase;
   color: var(--accent-cyan);
 }
-.hm-proj__title { font-size: calc(var(--fs-2xl) * var(--fs-scale)); }
+.hm-proj__title { font-size: var(--fs-2xl); }
 .hm-proj__line {
   width: 56px; height: 3px;
   border-radius: var(--radius-pill);
@@ -168,7 +170,7 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
   overflow: hidden;
 }
 .hm-proj__feature-body { position: relative; z-index: 1; }
-.hm-proj__feature-title { font-size: calc(var(--fs-xl) * var(--fs-scale)); margin: var(--space-2) 0; }
+.hm-proj__feature-title { font-size: var(--fs-xl); margin: var(--space-2) 0; }
 .hm-proj__feature-desc {
   color: var(--text-secondary);
   font-size: var(--fs-base);
@@ -251,7 +253,7 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
 }
 
 .hm-proj__card-title {
-  font-size: calc(var(--fs-lg) * var(--fs-scale));
+  font-size: var(--fs-lg);
   margin-bottom: var(--space-2);
 }
 .hm-proj__card-desc {
@@ -302,7 +304,7 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
 /* ==================== 手机端布局（DEVICE 维度） ==================== */
 .hm-proj.is-mobile { padding: var(--space-6) 0; }
 .hm-proj.is-mobile .hm-proj__head { margin-bottom: var(--space-6); }
-.hm-proj.is-mobile .hm-proj__title { font-size: calc(var(--fs-xl) * var(--fs-scale)); }
+.hm-proj.is-mobile .hm-proj__title { font-size: var(--fs-xl); }
 .hm-proj.is-mobile .hm-proj__grid,
 .hm-proj.is-mobile .hm-proj__grid--3 { grid-template-columns: 1fr; gap: var(--space-3); }
 .hm-proj.is-mobile .hm-proj__card { padding: var(--space-5); }

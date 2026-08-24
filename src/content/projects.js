@@ -67,7 +67,8 @@ export const PROJECTS_CONTENT = {
             demoUrl: '',
             githubUrl: '',
           }
-        ]
+        ],
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -127,7 +128,8 @@ export const PROJECTS_CONTENT = {
             demoUrl: '',
             githubUrl: '',
           }
-        ]
+        ],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   },
@@ -166,7 +168,8 @@ export const PROJECTS_CONTENT = {
             demoUrl: '',
             githubUrl: ''
           }
-        ]
+        ],
+        more: { showMore: true, text: '正在丰富中' }
       }
     },
     en: {
@@ -202,7 +205,8 @@ export const PROJECTS_CONTENT = {
             demoUrl: '',
             githubUrl: ''
           }
-        ]
+        ],
+        more: { showMore: true, text: 'More coming soon' }
       }
     }
   }

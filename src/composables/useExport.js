@@ -5,9 +5,11 @@
      - 内联全部 CSS（序列化 document.styleSheets，@import 提前到顶部）
      - 剥离编辑器/工具 UI：控制台、选中框、内联编辑浮层、模块配置浮窗、
        顶部导航的版本/语言/形态/设备/主题切换器、页脚版本徽标
-     - 剥离全部 <script>（静态快照无需运行时，可离线打开/分享/部署）
+     - 剥离主运行脚本（静态快照无需整套运行时，可离线打开/分享/部署）
+     - 仅注入一段【极小的运行时脚本】驱动导出后仍该动的动态部分
+       （hero 职位轮播 data-export-roles），其余全部静态到终态
      - 强制所有模块入场动画到终态（滚动扫一遍 + GSAP flush + 安全网）
-     - 成品【干净】：不含署名水印/仓库链接/任何脚本（求 star 提示在
+     - 成品【干净】：不含署名水印/仓库链接（求 star 提示在
        点导出时由编辑面板弹出，见 ConsolePanel.vue）
    输出：直接触发浏览器下载一个 .html 文件。
    ============================================================ */
@@ -153,6 +155,33 @@ async function buildStandaloneHtml() {
   style.textContent = css
   const head = root.querySelector('head')
   if (head) head.appendChild(style)
+
+  /* ===================== 注入最小运行时脚本（仅驱动导出后仍该动的部分） =====================
+     成品原则仍是「干净、无编辑器」；但纯静态快照会让「依赖 JS 定时器」的
+     动态效果失效（如 hero 职位轮播）。这里只注入一段极小的内联脚本：
+       - 职位轮播：读取 data-export-roles（JSON 数组），每 2.6s 轮换 + 淡入淡出
+     其余（入场动画/打字机）在导出前已强制到终态，成品不再需要。 */
+  const dynamic = root.ownerDocument.createElement('script')
+  dynamic.setAttribute('data-export-run', 'true')
+  dynamic.textContent = `(function(){
+  function $$(s){return Array.prototype.slice.call(document.querySelectorAll(s))}
+  function fade(el,out,fn){var o=out?0:1;var a=null;function step(){o+=out?-0.15:0.15;if(o<=0&&out){el.style.opacity='0';fn&&fn()}else if(o>=1&&!out){el.style.opacity='1'}else{el.style.opacity=String(o);a=requestAnimationFrame(step)}}cancelAnimationFrame(a);a=requestAnimationFrame(step)}
+  function runRoles(){
+    $$('[data-export-roles]').forEach(function(el){
+      var roles=[];try{roles=JSON.parse(el.getAttribute('data-export-roles')||'[]')}catch(e){return}
+      if(!roles.length)return
+      var i=0
+      el.style.opacity='1'
+      setInterval(function(){
+        i=(i+1)%roles.length
+        fade(el,true,function(){el.textContent=roles[i];fade(el,false)})
+      },2600)
+    })
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',runRoles)}else{runRoles()}
+})();`
+  const bodyEl = root.querySelector('body')
+  if (bodyEl) bodyEl.appendChild(dynamic)
 
   return `<!DOCTYPE html>\n${root.outerHTML}`
 }
