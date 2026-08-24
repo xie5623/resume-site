@@ -157,6 +157,7 @@ onBeforeUnmount(() => unregisterModuleReveal(props.module.id))
     :data-module="module.id"
     :data-module-label="moduleLabel"
     :data-reveal-mode="revealMode"
+    :data-export-anim="module.animation"
     :style="sectionStyle"
     @click="onSectionClick"
   >

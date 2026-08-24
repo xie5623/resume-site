@@ -18,6 +18,9 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { setMode } from './useMode'
 import { closeConsole } from './useConsole'
+import { REVEAL_PRESETS } from './useReveal'
+import gsapCoreSrc from 'gsap/dist/gsap.min.js?raw'
+import scrollTriggerSrc from 'gsap/dist/ScrollTrigger.min.js?raw'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -122,6 +125,98 @@ async function forceRevealAll() {
   await sleep(80)
 }
 
+/* ===================== 导出成品动画运行时 =====================
+   exportRuntimeScript：内联进导出的 HTML（通过 toString 序列化源码），
+   依赖已内联的 gsap 核心 + ScrollTrigger 引擎。复刻 useReveal 的入场逻辑：
+     - 模块按 data-export-anim 读动画名 → REVEAL_PRESETS（同预览版预设表）
+     - 初始设 to .from（隐藏态），ScrollTrigger top 88% 触发动画到 .to
+     - 'none' 跳过；'stagger-children' 子元素错峰
+     - hero 职位轮播：data-export-roles 每 2.6s 淡入淡出轮换
+  注意：这是【独立】运行时，不依赖 Vue —— 快照 DOM 已在导出前强制到
+  入场终态，这里重新按动画名隐藏 + 滚动触发，达到与预览版一致的观感。 */
+function exportRuntimeScript() {
+  /* global gsap, ScrollTrigger, __EXPORT_REVEAL__ */
+  ;(function () {
+    if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return
+
+    /* 预设表来自导出时序列化的 REVEAL_PRESETS（与预览版 useReveal 完全一致） */
+    var PRESETS = (typeof __EXPORT_REVEAL__ === 'object' && __EXPORT_REVEAL__) || {}
+
+    function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)) }
+
+    function setupReveals() {
+      var mods = $$('[data-module][data-export-anim]')
+      mods.forEach(function (el) {
+        var name = el.getAttribute('data-export-anim')
+        if (!name || name === 'none') return
+
+        /* 简化：小屏 / 减少动态 → 只淡入（与预览版 shouldSimplifyMotion 一致） */
+        var reduce = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+        var small = window.innerWidth < 768
+
+        if (name === 'stagger-children') {
+          var kids = $$('[data-module][data-export-anim] > *').filter(function (c) { return c.nodeType === 1 })
+          if (!kids.length) { gsap.set(el, { opacity: 1 }); return }
+          gsap.set(kids, { opacity: 0, y: 40 })
+          gsap.to(kids, {
+            opacity: 1, y: 0, duration: 1.0, ease: 'power3.out', stagger: 0.1,
+            scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+          })
+          return
+        }
+
+        var p = PRESETS[name] || PRESETS['fade-up']
+        if (reduce || small) {
+          /* 简化：只透明度 */
+          gsap.set(el, { opacity: 0 })
+          gsap.to(el, {
+            opacity: 1, duration: 0.5, ease: 'power1.out',
+            scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+          })
+          return
+        }
+
+        gsap.set(el, p.from)
+        gsap.to(el, {
+          ...p.to,
+          duration: 1.0,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: el, start: 'top 88%', once: true }
+        })
+      })
+    }
+
+    /* hero 职位轮播：data-export-roles → 每 2.6s 淡入淡出轮换 */
+    function setupRoles() {
+      $$('[data-export-roles]').forEach(function (el) {
+        var roles = []
+        try { roles = JSON.parse(el.getAttribute('data-export-roles') || '[]') } catch (e) { return }
+        if (!roles.length) return
+        var i = 0
+        el.style.opacity = '1'
+        setInterval(function () {
+          i = (i + 1) % roles.length
+          var next = roles[i]
+          gsap.to(el, {
+            opacity: 0, duration: 0.3, ease: 'power1.in',
+            onComplete: function () {
+              el.textContent = next
+              gsap.to(el, { opacity: 1, duration: 0.4, ease: 'power1.out' })
+            }
+          })
+        }, 2600)
+      })
+    }
+
+    function boot() {
+      setupReveals()
+      setupRoles()
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot)
+    else boot()
+  })()
+}
+
 /* ===================== 快照 → 独立 HTML 字符串 ===================== */
 async function buildStandaloneHtml() {
   const css = await collectCss()
@@ -156,32 +251,25 @@ async function buildStandaloneHtml() {
   const head = root.querySelector('head')
   if (head) head.appendChild(style)
 
-  /* ===================== 注入最小运行时脚本（仅驱动导出后仍该动的部分） =====================
-     成品原则仍是「干净、无编辑器」；但纯静态快照会让「依赖 JS 定时器」的
-     动态效果失效（如 hero 职位轮播）。这里只注入一段极小的内联脚本：
-       - 职位轮播：读取 data-export-roles（JSON 数组），每 2.6s 轮换 + 淡入淡出
-     其余（入场动画/打字机）在导出前已强制到终态，成品不再需要。 */
-  const dynamic = root.ownerDocument.createElement('script')
-  dynamic.setAttribute('data-export-run', 'true')
-  dynamic.textContent = `(function(){
-  function $$(s){return Array.prototype.slice.call(document.querySelectorAll(s))}
-  function fade(el,out,fn){var o=out?0:1;var a=null;function step(){o+=out?-0.15:0.15;if(o<=0&&out){el.style.opacity='0';fn&&fn()}else if(o>=1&&!out){el.style.opacity='1'}else{el.style.opacity=String(o);a=requestAnimationFrame(step)}}cancelAnimationFrame(a);a=requestAnimationFrame(step)}
-  function runRoles(){
-    $$('[data-export-roles]').forEach(function(el){
-      var roles=[];try{roles=JSON.parse(el.getAttribute('data-export-roles')||'[]')}catch(e){return}
-      if(!roles.length)return
-      var i=0
-      el.style.opacity='1'
-      setInterval(function(){
-        i=(i+1)%roles.length
-        fade(el,true,function(){el.textContent=roles[i];fade(el,false)})
-      },2600)
-    })
-  }
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',runRoles)}else{runRoles()}
-})();`
+  /* ===================== 注入完整运行时（导出成品保留动画） =====================
+     用户需求：下载的 HTML 要与预览版【一模一样】的动画（滚到 88% 才浮现、
+     幅度/跟手/渐变强调等）。做法：
+       - 内联 GSAP 核心 + ScrollTrigger 引擎（?raw 读取 node_modules 产物）
+       - 运行时脚本按 data-export-anim（模块动画名）读取 REVEAL_PRESETS，
+         用 ScrollTrigger 以 top 88% 触发入场动画——与预览版 useReveal 同预设同触发点
+       - 保留 hero 职位轮播（data-export-roles）
+     成品仍是单文件自包含：引擎内联、无外部请求。 */
   const bodyEl = root.querySelector('body')
-  if (bodyEl) bodyEl.appendChild(dynamic)
+  if (bodyEl) {
+    const engine = root.ownerDocument.createElement('script')
+    engine.setAttribute('data-export-run', 'true')
+    /* 用运行时脚本 + 从 useReveal 序列化的 REVEAL_PRESETS（与预览版完全一致，
+       避免硬编码重复导致两处漂移）。脚本从全局 __EXPORT_REVEAL__ 读预设表。 */
+    engine.textContent =
+      `var __EXPORT_REVEAL__=${JSON.stringify(REVEAL_PRESETS)};\n` +
+      `${gsapCoreSrc}\n${scrollTriggerSrc}\n(${exportRuntimeScript.toString()})();`
+    bodyEl.appendChild(engine)
+  }
 
   return `<!DOCTYPE html>\n${root.outerHTML}`
 }
