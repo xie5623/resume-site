@@ -88,8 +88,8 @@ export const FONT_SCALE_RANGE = { min: 0.8, max: 1.6, step: 0.05 }
 /** 入场动画时长（秒）配置，供 useReveal 读取 */
 export const ANIMATION_DURATION = {
   fast: 0.5,
-  base: 0.8,
-  slow: 1.2
+  base: 1.0,
+  slow: 1.4
 }
 
 /* ===================== 模块配置默认值 ===================== */

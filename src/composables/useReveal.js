@@ -57,25 +57,27 @@ const DEFAULT_DURATION = ANIMATION_DURATION?.base ?? 0.8
  * 组件挂载后立即被 gsap.set 到 from 状态，等滚动进入视口后动画到 to。
  */
 export const REVEAL_PRESETS = {
-  /* --- 方向淡入（config ALLOWED_ANIMATIONS 原有） --- */
-  'fade-up':    { from: { opacity: 0, y: 48 },  to: { opacity: 1, y: 0 } },
-  'fade-down':  { from: { opacity: 0, y: -48 }, to: { opacity: 1, y: 0 } },
-  'fade-left':  { from: { opacity: 0, x: -48 }, to: { opacity: 1, x: 0 } },
-  'fade-right': { from: { opacity: 0, x: 48 },  to: { opacity: 1, x: 0 } },
+  /* --- 方向淡入（config ALLOWED_ANIMATIONS 原有）
+       幅度加大：位移/缩放更明显，配合「滚到快到了才触发」的 start 位置，
+       循序渐进感更强（用户需求：出场动画幅度大一些、更跟手）。 --- */
+  'fade-up':    { from: { opacity: 0, y: 90 },  to: { opacity: 1, y: 0 } },
+  'fade-down':  { from: { opacity: 0, y: -90 }, to: { opacity: 1, y: 0 } },
+  'fade-left':  { from: { opacity: 0, x: -90 }, to: { opacity: 1, x: 0 } },
+  'fade-right': { from: { opacity: 0, x: 90 },  to: { opacity: 1, x: 0 } },
 
   /* --- 任务补充预设 --- */
   'fade-in':     { from: { opacity: 0 },              to: { opacity: 1 } },
-  'slide-left':  { from: { x: -80, opacity: 0 },      to: { x: 0, opacity: 1 } },
-  'slide-right': { from: { x: 80,  opacity: 0 },      to: { x: 0, opacity: 1 } },
-  'zoom-in':     { from: { opacity: 0, scale: 0.9 },  to: { opacity: 1, scale: 1 } },
-  'scale-in':    { from: { opacity: 0, scale: 0.85 }, to: { opacity: 1, scale: 1 } },
-  'flip-up':     { from: { opacity: 0, y: 24, rotationX: -90, transformOrigin: '50% 0%' },
+  'slide-left':  { from: { x: -140, opacity: 0 },     to: { x: 0, opacity: 1 } },
+  'slide-right': { from: { x: 140,  opacity: 0 },     to: { x: 0, opacity: 1 } },
+  'zoom-in':     { from: { opacity: 0, scale: 0.82 }, to: { opacity: 1, scale: 1 } },
+  'scale-in':    { from: { opacity: 0, scale: 0.75 }, to: { opacity: 1, scale: 1 } },
+  'flip-up':     { from: { opacity: 0, y: 40, rotationX: -110, transformOrigin: '50% 0%' },
                    to:   { opacity: 1, y: 0,  rotationX: 0,   transformOrigin: '50% 0%' } },
-  'flip-in':     { from: { opacity: 0, rotationY: -90, transformOrigin: '50% 50%' },
+  'flip-in':     { from: { opacity: 0, rotationY: -110, transformOrigin: '50% 50%' },
                    to:   { opacity: 1, rotationY: 0,   transformOrigin: '50% 50%' } },
-  'slide-blur':  { from: { opacity: 0, y: 40, filter: 'blur(12px)' },
+  'slide-blur':  { from: { opacity: 0, y: 70, filter: 'blur(18px)' },
                    to:   { opacity: 1, y: 0,  filter: 'blur(0px)' } },
-  'blur-in':     { from: { opacity: 0, filter: 'blur(16px)' },
+  'blur-in':     { from: { opacity: 0, filter: 'blur(24px)' },
                    to:   { opacity: 1, filter: 'blur(0px)' } },
 
   /* 子元素错峰：单独处理（见 revealElement），这里留空占位 */
@@ -129,7 +131,7 @@ function preHideState(el, animName) {
 
   if (name === 'stagger-children') {
     const children = gsap.utils.toArray(el.children).filter((c) => c.nodeType === 1)
-    gsap.set(children, { opacity: 0, y: 24 })
+    gsap.set(children, { opacity: 0, y: 40 })
     return
   }
 
@@ -165,8 +167,8 @@ function revealElement(el, animName, opts = {}, revealedRef) {
     delay = 0,
     duration = DEFAULT_DURATION,
     once = true,
-    ease = 'power2.out',
-    start = 'top 85%'
+    ease = 'power3.out',
+    start = 'top 88%'
   } = opts
 
   const setRevealed = (v) => { if (revealedRef) revealedRef.value = v }
@@ -282,20 +284,20 @@ function revealElement(el, animName, opts = {}, revealedRef) {
         onStart: () => setRevealing(true),
         onComplete: () => { setRevealing(false); setRevealed(true) }
       }
-      link({ opacity: 0, y: 24 }, to)
+      link({ opacity: 0, y: 40 }, to)
       return {
         cleanup,
         replay: () => fadeThen(
           () => preHideState(el, animName),
-          () => { tween = gsap.fromTo(el, { opacity: 0, y: 24 }, { ...to }) }
+          () => { tween = gsap.fromTo(el, { opacity: 0, y: 40 }, { ...to }) }
         )
       }
     }
-    gsap.set(children, { opacity: 0, y: 24 })
+    gsap.set(children, { opacity: 0, y: 40 })
     tween = gsap.to(children, {
       opacity: 1, y: 0,
       duration, delay, ease,
-      stagger: 0.08,
+      stagger: 0.1,
       onStart: () => setRevealing(true),
       onComplete: () => { setRevealing(false); setRevealed(true) }
     })
@@ -316,7 +318,7 @@ function revealElement(el, animName, opts = {}, revealedRef) {
           tween = gsap.to(children, {
             opacity: 1, y: 0,
             duration, delay, ease,
-            stagger: 0.08,
+            stagger: 0.1,
             onComplete: () => { setRevealing(false); setRevealed(true) }
           })
         }
