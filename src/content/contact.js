@@ -28,8 +28,8 @@ export const CONTACT_CONTENT = {
         formMessage: '留言内容',
         formMessagePh: '简单介绍一下您的需求…',
         formSubmit: '发送留言',
-        formHint: '表单为占位示例，点击不会真的提交。',
-        formDone: '已收到！(占位提示：演示环境未发送)',
+        formHint: '点击发送会打开你的邮件客户端，留言将直接发到作者邮箱。',
+        formDone: '已打开邮件客户端，确认发送即可！',
         values: ['hello@example.com', 'YourWeChatID', '+86 138 0000 0000', 'github.com/yourname']
       }
     },
@@ -51,8 +51,8 @@ export const CONTACT_CONTENT = {
         formMessage: 'Message',
         formMessagePh: 'Briefly describe what you need…',
         formSubmit: 'Send message',
-        formHint: 'This form is a placeholder — nothing is submitted.',
-        formDone: 'Received! (placeholder: nothing was sent)',
+        formHint: "Clicking send opens your mail app — the message goes straight to the author's inbox.",
+        formDone: 'Mail app opened — just hit send!',
         values: ['hello@example.com', 'YourWeChatID', '+86 138 0000 0000', 'github.com/yourname']
       }
     }
@@ -64,7 +64,7 @@ export const CONTACT_CONTENT = {
       contact: {
         kicker: 'CONTACT',
         title: '联系方式',
-        subtitle: '期待加入你的团队（占位示例）',
+        subtitle: '欢迎联系交流（实习 / 校招均可）',
         linksHead: '直达通道',
         email: '邮箱',
         wechat: '微信',
@@ -78,16 +78,16 @@ export const CONTACT_CONTENT = {
         formMessage: '留言内容',
         formMessagePh: '简单介绍一下校招或实习机会…',
         formSubmit: '发送留言',
-        formHint: '表单为占位示例，点击不会真的提交。',
-        formDone: '已收到！(占位提示：演示环境未发送)',
-        values: ['hello@example.com', 'YourWeChatID', '+86 138 0000 0000', 'github.com/yourname']
+        formHint: '点击发送会打开你的邮件客户端，留言将直接发到作者邮箱。',
+        formDone: '已打开邮件客户端，确认发送即可！',
+        values: ['you@example.com', '你的微信ID', '+86 138 0000 0000', 'github.com/yourname']
       }
     },
     en: {
       contact: {
         kicker: 'CONTACT',
         title: 'Contact',
-        subtitle: "I'd love to join your team (placeholder)",
+        subtitle: "I'd love to connect — internships and new-grad roles welcome",
         linksHead: 'Direct channels',
         email: 'Email',
         wechat: 'WeChat',
@@ -101,9 +101,9 @@ export const CONTACT_CONTENT = {
         formMessage: 'Message',
         formMessagePh: 'Briefly describe the new-grad or intern opportunity…',
         formSubmit: 'Send message',
-        formHint: 'This form is a placeholder — nothing is submitted.',
-        formDone: 'Received! (placeholder: nothing was sent)',
-        values: ['hello@example.com', 'YourWeChatID', '+86 138 0000 0000', 'github.com/yourname']
+        formHint: "Clicking send opens your mail app — the message goes straight to the author's inbox.",
+        formDone: 'Mail app opened — just hit send!',
+        values: ['you@example.com', 'YourWeChatID', '+86 138 0000 0000', 'github.com/yourname']
       }
     }
   }

@@ -4,9 +4,13 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // GitHub Pages 子路径部署：仓库为 hang5623/resume-site，资源都挂 /resume-site/
+  // GitHub Pages 子路径部署：资源都挂 /resume-site/（部署时可按仓库改名）
   base: '/resume-site/',
   plugins: [vue()],
+  // 构建时间戳（footer 版本徽标用，便于确认线上/本地跑的是哪次构建）
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString())
+  },
   resolve: {
     alias: {
       // @ 指向 src，方便各模块引用主题/配置/组件

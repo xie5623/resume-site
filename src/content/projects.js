@@ -135,60 +135,36 @@ export const PROJECTS_CONTENT = {
   graduate: {
     zh: {
       projects: {
-        eyebrow: '课程作品',
-        title: '项目实践',
-        sub: '课程设计、毕业设计与个人项目占位，链接指向 #。',
+        eyebrow: '项目实践',
+        title: '项目经历',
+        sub: '参与过的课程设计、竞赛或自建项目占位示例。',
         demo: '在线演示',
         github: '源码',
         items: [
           {
-            name: '毕业设计：校园二手交易平台',
-            desc: '用 Vue 3 + Node.js 实现二手商品发布与交易流程，独立完成前后端。',
-            tags: ['Vue 3', 'Vite', 'OpenAI', 'GSAP'],
-            year: '2024',
+            name: '示例项目一（课程设计）',
+            desc: '这里是一段占位项目描述：项目背景、你的职责、使用的技术、以及最终成果。可在控制台替换为你的真实项目。',
+            tags: ['占位', '团队协作', '方案落地'],
+            year: '2025',
             demoUrl: '',
             githubUrl: '',
             featured: true
           },
           {
-            name: '课程设计：图书管理系统',
-            desc: '小组课程设计，负责前端页面与交互，按需求文档完成功能迭代。',
-            tags: ['Vue 3', 'TypeScript', 'SCSS'],
+            name: '示例项目二（竞赛 / 实践）',
+            desc: '占位描述：说明你在其中承担的角色与产出，展示你解决实际问题的能力。',
+            tags: ['占位', '实践'],
+            year: '2025',
+            demoUrl: '',
+            githubUrl: ''
+          },
+          {
+            name: '示例项目三（个人作品）',
+            desc: '占位描述：独立完成的小项目，展示你的自驱力与完整交付能力。',
+            tags: ['占位', '个人'],
             year: '2024',
             demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: '个人项目：简历网站',
-            desc: '自学 Vue 3 后独立完成的个人网站，实践响应式布局与动画。',
-            tags: ['React', 'WebSocket', 'ECharts'],
-            year: '2023',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: '课程设计：校园活动报名系统',
-            desc: '前端 + 本地存储实现活动发布与报名，练习组件化开发。',
-            tags: ['WeChat', 'JavaScript', 'CloudBase'],
-            year: '2023',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: '个人项目：待办与笔记应用',
-            desc: '用 TypeScript + Vite 实现，练习状态管理与类型系统。',
-            tags: ['TypeScript', 'Monaco', 'Electron'],
-            year: '2022',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: '小组项目：数据可视化练习',
-            desc: '用 ECharts 完成课堂数据的可视化展示，熟悉图表配置。',
-            tags: ['Vue 2', 'REST', 'PWA'],
-            year: '2022',
-            demoUrl: '',
-            githubUrl: '',
+            githubUrl: ''
           }
         ]
       }
@@ -197,58 +173,34 @@ export const PROJECTS_CONTENT = {
       projects: {
         eyebrow: 'PROJECTS',
         title: 'Projects',
-        sub: 'Placeholder for coursework, graduation, and personal projects; links point to #.',
+        sub: 'Placeholder for course projects, competitions, or personal builds.',
         demo: 'Live Demo',
         github: 'Source',
         items: [
           {
-            name: 'Graduation Project: Campus Second-hand Platform',
-            desc: 'Built listing & trading flows with Vue 3 and Node.js, frontend and backend solo.',
-            tags: ['Vue 3', 'Vite', 'OpenAI', 'GSAP'],
-            year: '2024',
+            name: 'Example Project One (Coursework)',
+            desc: 'Placeholder description: background, your role, tech used, and outcome. Replace with your real project in the console.',
+            tags: ['Placeholder', 'Teamwork'],
+            year: '2025',
             demoUrl: '',
             githubUrl: '',
             featured: true
           },
           {
-            name: 'Course Project: Library Management System',
-            desc: 'Group coursework — owned the frontend UI and interactions, iterating against a requirements doc.',
-            tags: ['Vue 3', 'TypeScript', 'SCSS'],
+            name: 'Example Project Two (Competition / Practice)',
+            desc: 'Placeholder: describe your role and deliverables to show how you solve real problems.',
+            tags: ['Placeholder', 'Practice'],
+            year: '2025',
+            demoUrl: '',
+            githubUrl: ''
+          },
+          {
+            name: 'Example Project Three (Personal Build)',
+            desc: 'Placeholder: a solo project showing initiative and end-to-end delivery.',
+            tags: ['Placeholder', 'Personal'],
             year: '2024',
             demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: 'Personal Project: Resume Website',
-            desc: 'Built solo after self-learning Vue 3, practicing responsive layouts and animation.',
-            tags: ['React', 'WebSocket', 'ECharts'],
-            year: '2023',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: 'Course Project: Campus Event Registration',
-            desc: 'Frontend + local storage for event publishing and registration — practiced componentization.',
-            tags: ['WeChat', 'JavaScript', 'CloudBase'],
-            year: '2023',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: 'Personal Project: Todo & Notes App',
-            desc: 'TypeScript + Vite; practiced state management and the type system.',
-            tags: ['TypeScript', 'Monaco', 'Electron'],
-            year: '2022',
-            demoUrl: '',
-            githubUrl: '',
-          },
-          {
-            name: 'Team Project: Data Visualization',
-            desc: 'Used ECharts to visualize classroom data and get familiar with chart config.',
-            tags: ['Vue 2', 'REST', 'PWA'],
-            year: '2022',
-            demoUrl: '',
-            githubUrl: '',
+            githubUrl: ''
           }
         ]
       }

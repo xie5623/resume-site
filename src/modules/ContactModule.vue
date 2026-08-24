@@ -45,25 +45,88 @@ const { version } = useVersion()
 const { get } = useContent()
 const T = (key) => get(version.value, props.lang, `contact.${key}`)
 
+/* ===================== 直达通道（需求 1：真正可用） =====================
+   values = [邮箱, 微信, 电话, GitHub]
+   每个通道点击动作：
+     - 邮箱：复制邮箱到剪贴板（提示）+ 长按也可；成品态点击即复制
+     - 微信：复制微信号
+     - 电话：手机端 tel: 直拨；桌面端复制号码
+     - GitHub：跳转（用户可编辑 URL 前缀）
+   编辑态（body.editing）点击交给 v-editable 选中，不触发复制。 */
 const channels = computed(() => {
   const values = Array.isArray(T('values')) ? T('values') : []
   return [
-    { icon: 'mail', key: 'email', label: T('email'), value: values[0] ?? '', href: 'mailto:hello@example.com' },
-    { icon: 'chat', key: 'wechat', label: T('wechat'), value: values[1] ?? '', href: '#' },
-    { icon: 'phone', key: 'phone', label: T('phone'), value: values[2] ?? '', href: '#' },
-    { icon: 'github', key: 'github', label: T('github'), value: values[3] ?? '', href: 'https://github.com/' }
+    { icon: 'mail', key: 'email', label: T('email'), value: values[0] ?? '', kind: 'copy', copyHint: T('email') + ' ✓' },
+    { icon: 'chat', key: 'wechat', label: T('wechat'), value: values[1] ?? '', kind: 'copy', copyHint: T('wechat') + ' ✓' },
+    { icon: 'phone', key: 'phone', label: T('phone'), value: values[2] ?? '', kind: 'tel', copyHint: T('phone') + ' ✓' },
+    { icon: 'github', key: 'github', label: T('github'), value: values[3] ?? '', kind: 'link', copyHint: 'GitHub ↗' }
   ]
 })
+
+/* 复制反馈：点通道后短暂显示「已复制」 */
+const copiedKey = ref(null)
+let copyTimer = null
+function copyText(text) {
+  if (!text || typeof navigator === 'undefined') return false
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text))
+  } else {
+    fallbackCopy(text)
+  }
+  return true
+}
+function fallbackCopy(text) {
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    ta.remove()
+  } catch (_) { /* ignore */ }
+}
+function onChannelClick(ch, e) {
+  if (typeof document !== 'undefined' && document.body?.classList.contains('editing')) return /* 编辑态：交给 v-editable */
+  if (!ch.value) return
+  if (ch.kind === 'link') {
+    window.open('https://github.com/' + ch.value, '_blank', 'noopener')
+    return
+  }
+  if (ch.kind === 'tel' && /Mobi|Android|iPhone/i.test(navigator.userAgent || '')) {
+    /* 手机端：tel: 直拨 */
+    window.location.href = `tel:${ch.value.replace(/[^\d+]/g, '')}`
+    return
+  }
+  /* 默认：复制 */
+  copyText(ch.value)
+  copiedKey.value = ch.key
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => { copiedKey.value = null }, 1600)
+}
+
+/* ===================== 留言表单（需求 1：真正能发） =====================
+   提交 → 打开系统邮件客户端 mailto:，预填收件人（作者邮箱 values[0]）、
+   主题、正文（姓名 + 回邮 + 留言）→ 访客点发送即真实送达作者邮箱。
+   零后端、零配置，只要作者在控制台填了自己的邮箱。 */
+const form = ref({ name: '', email: '', message: '' })
+const sent = ref(false)
+function onSubmit() {
+  const to = (Array.isArray(T('values')) ? T('values')[0] : '') || ''
+  const subject = encodeURIComponent(`来自 ${form.value.name || '访客'} 的留言`)
+  const body = encodeURIComponent(
+    `姓名：${form.value.name}\n回邮：${form.value.email}\n\n${form.value.message}`
+  )
+  if (to) {
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
+  }
+  sent.value = true
+}
 
 /* ---------- 入场状态（revealed 由 App 装配层 ModuleSection 驱动） ---------- */
 const revealed = useModuleReveal(props.config.id)
 const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ? props.config.variant : 'a'))
-
-/* ---------- 表单占位：不提交 ---------- */
-const sent = ref(false)
-function onSubmit() {
-  sent.value = true
-}
 </script>
 
 <template>
@@ -87,15 +150,16 @@ function onSubmit() {
       <div class="contact__channels">
         <h3 class="contact__subhead" v-editable="ed('linksHead')">{{ T('linksHead') }}</h3>
         <div class="contact__link-grid">
-          <a
+          <div
             v-for="(ch, i) in channels"
-            :key="ch.label"
+            :key="ch.key"
             class="glass contact__link"
-            :href="ch.href"
+            role="button"
+            tabindex="0"
             :aria-label="`${ch.label}: ${ch.value}`"
-            :target="ch.href.startsWith('http') ? '_blank' : undefined"
-            :rel="ch.href.startsWith('http') ? 'noopener noreferrer' : undefined"
             :style="{ '--i': i }"
+            @click="onChannelClick(ch, $event)"
+            @keydown.enter="onChannelClick(ch, $event)"
           >
             <span class="contact__icon" aria-hidden="true">
               <!-- 邮箱 -->
@@ -118,30 +182,30 @@ function onSubmit() {
             </span>
             <span class="contact__link-text">
               <span class="contact__label" v-editable="ed(ch.key)">{{ ch.label }}</span>
-              <span class="contact__value" v-editable="ed('values')">{{ ch.value }}</span>
+              <span class="contact__value" v-editable="ed('values')">{{ copiedKey === ch.key ? ch.copyHint : ch.value }}</span>
             </span>
-          </a>
+          </div>
         </div>
       </div>
 
-      <!-- 留言表单（占位，不提交） -->
+      <!-- 留言表单（需求 1：提交 → 打开邮件客户端真实发信） -->
       <div class="glass glass--strong contact__form-panel">
         <h3 class="contact__subhead" v-editable="ed('formHead')">{{ T('formHead') }}</h3>
         <form class="contact__form" @submit.prevent="onSubmit">
           <label class="contact__field">
             <span class="contact__field-label" v-editable="ed('formName')">{{ T('formName') }}</span>
             <input class="glass-input" type="text" name="name" autocomplete="name"
-                   :placeholder="T('formNamePh')" />
+                   :placeholder="T('formNamePh')" v-model="form.name" required />
           </label>
           <label class="contact__field">
             <span class="contact__field-label" v-editable="ed('formEmail')">{{ T('formEmail') }}</span>
             <input class="glass-input" type="email" name="email" autocomplete="email"
-                   :placeholder="T('formEmailPh')" />
+                   :placeholder="T('formEmailPh')" v-model="form.email" />
           </label>
           <label class="contact__field">
             <span class="contact__field-label" v-editable="ed('formMessage')">{{ T('formMessage') }}</span>
             <textarea class="glass-input contact__textarea" name="message" rows="4"
-                      :placeholder="T('formMessagePh')"></textarea>
+                      :placeholder="T('formMessagePh')" v-model="form.message" required></textarea>
           </label>
           <button class="glass-btn glass-btn--accent contact__submit" type="submit" v-editable="ed('formSubmit')">
             {{ T('formSubmit') }}

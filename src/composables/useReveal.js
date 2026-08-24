@@ -170,6 +170,13 @@ function revealElement(el, animName, opts = {}, revealedRef) {
   } = opts
 
   const setRevealed = (v) => { if (revealedRef) revealedRef.value = v }
+  /* Edge 兼容：入场动画进行中给模块挂 data-revealing（CSS 据此临时禁用
+     backdrop-filter 毛玻璃重采样，动画结束移除恢复）。 */
+  const setRevealing = (on) => {
+    if (!el) return
+    if (on) el.setAttribute('data-revealing', '')
+    else el.removeAttribute('data-revealing')
+  }
   const baseTrigger = { trigger: el, start, once }
   const onEnter = () => setRevealed(true)
 
@@ -204,6 +211,7 @@ function revealElement(el, animName, opts = {}, revealedRef) {
       duration: 0.16,
       ease: 'power1.in',
       overwrite: 'auto',
+      onStart: () => setRevealing(true),
       onComplete: () => {
         if (preHide) preHide()
         play()
@@ -251,7 +259,8 @@ function revealElement(el, animName, opts = {}, revealedRef) {
       duration: ANIMATION_DURATION?.fast ?? 0.5,
       delay,
       ease: 'power1.out',
-      onComplete: () => setRevealed(true)
+      onStart: () => setRevealing(true),
+      onComplete: () => { setRevealing(false); setRevealed(true) }
     }
     link({ opacity: 0 }, to)
     return {
@@ -270,7 +279,8 @@ function revealElement(el, animName, opts = {}, revealedRef) {
     if (!children.length) {
       const to = {
         opacity: 1, y: 0, duration, delay, ease,
-        onComplete: () => setRevealed(true)
+        onStart: () => setRevealing(true),
+        onComplete: () => { setRevealing(false); setRevealed(true) }
       }
       link({ opacity: 0, y: 24 }, to)
       return {
@@ -286,7 +296,8 @@ function revealElement(el, animName, opts = {}, revealedRef) {
       opacity: 1, y: 0,
       duration, delay, ease,
       stagger: 0.08,
-      onComplete: () => setRevealed(true)
+      onStart: () => setRevealing(true),
+      onComplete: () => { setRevealing(false); setRevealed(true) }
     })
     scrollTrigger = ScrollTrigger.create({ ...baseTrigger, animation: tween, onEnter })
     tween.scrollTrigger = scrollTrigger
@@ -306,7 +317,7 @@ function revealElement(el, animName, opts = {}, revealedRef) {
             opacity: 1, y: 0,
             duration, delay, ease,
             stagger: 0.08,
-            onComplete: () => setRevealed(true)
+            onComplete: () => { setRevealing(false); setRevealed(true) }
           })
         }
       )
@@ -320,7 +331,8 @@ function revealElement(el, animName, opts = {}, revealedRef) {
     duration,
     delay,
     ease,
-    onComplete: () => setRevealed(true)
+    onStart: () => setRevealing(true),
+    onComplete: () => { setRevealing(false); setRevealed(true) }
   }
   /* once=false 时允许滚动离开后反向隐藏（回到初始态） */
   link(preset.from, to, once ? {} : { toggleActions: 'play none none reverse' })

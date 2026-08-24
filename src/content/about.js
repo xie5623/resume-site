@@ -69,9 +69,9 @@ export const ABOUT_CONTENT = {
       about: {
         eyebrow: '关于我',
         title: '关于我',
-        p1: '我是 2025 届本科应届生，主修计算机科学与技术。对前端开发充满热情，能快速学习新工具，注重把想法落地成可用的产品。',
-        p2: '在校期间通过课程设计、实习与个人项目积累实战经验，习惯用文档记录学习、用作品沉淀成长。',
-        p3: '期待一份校招或实习转正机会：前端 / 全栈方向均可，欢迎随时联系交流。',
+        p1: '这里是一段占位自我介绍。写清楚你是谁、在读什么专业、做过什么、擅长什么，以及为什么值得被记住。两三句话足够，重点是真诚和具体。',
+        p2: '第二段可以补充你的校园经历、参与的竞赛或项目、掌握的工程软件，或者你在业余时间做的事情。保持简洁，让阅读体验始终轻盈。',
+        p3: '最后一段可以给出你的求职期望：实习 / 校招均可，随时欢迎联系交流。',
         card: { title: '个人档案' },
         age: '年龄',
         city: '城市',
@@ -80,21 +80,21 @@ export const ABOUT_CONTENT = {
         available: '求职状态',
         placeholder: {
           age: 'XX',
-          city: '上海 · 中国',
+          city: '城市 · 中国',
           mail: 'you@example.com',
           phone: '+86 138 0000 0000',
-          status: '应届 · 求职中'
+          status: '在校学生 · 实习求职中'
         },
-        stat: { 1: '学习方向', 2: '个人项目', 3: '实习经历' }
+        stat: { 1: '主修方向', 2: '工程软件', 3: '实战经历' }
       }
     },
     en: {
       about: {
         eyebrow: 'ABOUT ME',
         title: 'About Me',
-        p1: "I'm a 2025 undergrad in Computer Science. Passionate about frontend development, quick to pick up new tools, and focused on shipping ideas into working products.",
-        p2: "Through coursework, internships, and personal projects, I've built hands-on experience — I document what I learn and let my work show my growth.",
-        p3: 'Looking for a new-grad or intern-to-full-time role in frontend/full-stack. Reach out anytime.',
+        p1: "This is a placeholder intro. Describe who you are, what you're studying, what you have built, and what you are great at. A few honest, concrete sentences are enough.",
+        p2: 'A second paragraph can cover campus activities, competitions or projects you joined, engineering tools you know, or what you do in your spare time. Keep it short and light.',
+        p3: 'Wrap up with what you are looking for: internships and new-grad roles — reach out anytime.',
         card: { title: 'Profile' },
         age: 'Age',
         city: 'Location',
@@ -103,12 +103,12 @@ export const ABOUT_CONTENT = {
         available: 'Status',
         placeholder: {
           age: 'XX',
-          city: 'Shanghai, CN',
+          city: 'City, CN',
           mail: 'you@example.com',
           phone: '+86 138 0000 0000',
-          status: 'Open to new-grad roles'
+          status: 'Student · Open to internships'
         },
-        stat: { 1: 'Focus', 2: 'Projects', 3: 'Internships' }
+        stat: { 1: 'Focus', 2: 'Engineering Tools', 3: 'Projects' }
       }
     }
   }

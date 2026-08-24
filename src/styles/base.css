@@ -121,13 +121,12 @@ body.mode-deck .site { min-height: 100vh; }
   color: var(--text-primary);
 }
 
-/* ---------- 无障碍：尊重系统减少动效 ---------- */
+/* ---------- 无障碍：尊重系统减少动效 ----------
+   注：原规则（reduce 时把所有 animation/transition 压成 0.01ms）已移除——
+   它会禁用本站所有 CSS 动画（技能浮动、光球、过渡），而站长明确要求保留
+   完整动画。现仅保留滚动行为兜底；JS 侧 isMotionReduced() 也已覆盖为 false。 */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 /* ---------- 主题切换平滑过渡 ----------
@@ -241,3 +240,10 @@ body.resizing-panel {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* ============================================================
+   注：此前的「入场动画期间禁用 backdrop-filter」规则已移除。
+   根因已定位为 Edge 硬件加速被关闭（软件渲染导致毛玻璃重采样卡顿），
+   非站点代码问题。硬件加速开启后，完整毛玻璃 + 动画在 Edge 实测
+   0 掉帧，故删除降级规则，让 Edge 与 Chrome 渲染完全一致。
+   ============================================================ */

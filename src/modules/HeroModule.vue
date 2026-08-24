@@ -42,6 +42,9 @@ const { ed } = useEditableElement(props.config.id, [
   { key: 'scroll', label: { zh: '滚动提示', en: 'Scroll hint' }, type: 'text' },
   { key: 'badge', label: { zh: '在线徽章', en: 'Badge' }, type: 'text' },
   { key: 'cardRole', label: { zh: '卡片·职位', en: 'Card role' }, type: 'text' },
+  { key: 'cardLoc', label: { zh: '卡片·城市标签', en: 'Card location label' }, type: 'text' },
+  { key: 'cardMail', label: { zh: '卡片·邮箱标签', en: 'Card email label' }, type: 'text' },
+  { key: 'cardAvail', label: { zh: '卡片·状态标签', en: 'Card availability label' }, type: 'text' },
   { key: 'placeholderCity', label: { zh: '卡片·城市', en: 'Card city' }, type: 'text' },
   { key: 'placeholderMail', label: { zh: '卡片·邮箱', en: 'Card email' }, type: 'text' },
   { key: 'stats', label: { zh: '数据条', en: 'Stats' }, type: 'list' }
@@ -232,6 +235,15 @@ const scrollTarget = computed(() => {
 @keyframes hm-float {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(24px, -28px) scale(1.06); }
+}
+
+/* Edge 兼容：大尺寸模糊光球 + 无限 transform 动画，在 Edge 的
+   GaneshGL（OpenGL）渲染后端下会逐帧重采样模糊层 → 首屏入场动画频闪。
+   Edge 下改为静态光球（视觉几乎不变：原本就是 9–13s 缓慢浮动），
+   消除逐帧重采样；Chrome 等其它浏览器保持原样。 */
+[data-browser='edge'] .hm-hero__orb {
+  animation: none !important;
+  will-change: auto;
 }
 
 .hm-hero__inner {

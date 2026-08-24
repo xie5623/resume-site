@@ -24,11 +24,35 @@ import { capture, push, withHistory } from '@/composables/useHistory'
 const props = defineProps({
   path: { type: String, required: true },   // 完整点路径（含命名空间前缀）
   label: { type: String, default: '' },     // 友好名（缺省自动推导）
-  depth: { type: Number, default: 0 }       // 缩进层级（样式用）
+  depth: { type: Number, default: 0 },      // 缩进层级（样式用）
+  /* 可编辑白名单（可选）：模块根对象的顶层键过滤 —— 只渲染当前模块
+     通过 useEditableElement 注册的可编辑字段，剔除 i18n 基础层带进来、
+     当前模板并未渲染的冗余键（如 subtitle/lead/body 等）。空/未传 = 不过滤。 */
+  allowKeys: { type: Array, default: null }
 })
 
 const { get, setContent } = useContent()
 const { selection } = useSelection()
+
+/* ---------- 对象分支：按 allowKeys 过滤顶层键 ----------
+   注册键可能是【点路径】（如 about 的 card.title / placeholder.age / stat.1）。
+   顶层键 k 需要保留的条件：
+     - allowKeys 精确包含 k（普通顶层键），或
+     - 存在某个 allowKey 以「k.」开头（k 是点路径的父对象，
+       如 card.title → 保留 card，子对象渲染时自然展开 title）。
+   否则（i18n 基础层带来的、未注册的冗余键）过滤掉。 */
+const keys = computed(() => {
+  const v = value()
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return []
+  const ks = Object.keys(v)
+  if (props.allowKeys && props.allowKeys.length) {
+    return ks.filter((k) =>
+      props.allowKeys.includes(k) ||
+      props.allowKeys.some((a) => a.startsWith(k + '.'))
+    )
+  }
+  return ks
+})
 
 /* ---------- 是否当前选中字段（需求 4：ContentField 高亮对应项） ----------
    选中元素（moduleId + elementKey）→ 内容命名空间 + '.' + elementKey =
@@ -214,7 +238,7 @@ function isIndexLeaf(p) {
       <div class="cf__group">
         <div class="cf__group-title">{{ label || labelFor(path.split('.').pop()) }}</div>
         <ContentField
-          v-for="(subVal, subKey) in value()"
+          v-for="subKey in keys"
           :key="`${path}.${subKey}`"
           :path="`${path}.${subKey}`"
           :label="labelFor(subKey)"

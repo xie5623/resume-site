@@ -81,6 +81,12 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
         </article>
       </li>
     </ol>
+
+    <!-- ======== 正在丰富中占位卡（更多经历整理中） ======== -->
+    <div class="edu__more" aria-label="正在丰富中">
+      <span class="edu__more-dots" aria-hidden="true">···</span>
+      <span class="edu__more-text">正在丰富中</span>
+    </div>
   </section>
 </template>
 
@@ -226,4 +232,25 @@ const variant = computed(() => (['a', 'b', 'c'].includes(props.config.variant) ?
 .edu.is-mobile .edu__item { padding-left: calc(var(--space-5) + 6px); margin-bottom: var(--space-4); }
 .edu.is-mobile .edu__card { padding: var(--space-4); }
 .edu.is-mobile .edu--b .edu__timeline { grid-template-columns: 1fr; gap: var(--space-4); }
+
+/* ==================== 正在丰富中占位卡 ==================== */
+.edu__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+.edu__more-dots {
+  font-family: var(--font-mono);
+  letter-spacing: 0.3em;
+  color: var(--accent-cyan);
+}
 </style>

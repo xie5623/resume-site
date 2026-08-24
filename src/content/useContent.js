@@ -49,6 +49,11 @@ import { effectiveDevice as activeDevice } from '@/composables/useDevice'
 export const STORAGE_KEY = 'resume-site.content'              /* 桌面内容（原键） */
 export const MOBILE_STORAGE_KEY = 'resume-site.content.mobile' /* 手机覆盖补丁（新键） */
 
+/* 内容版本号：内容层文件（src/content/*.js）有实质更新时 +1。
+   持久化数据带版本标记；加载时版本不匹配 → 忽略旧数据（用最新文件默认值）。
+   防止「浏览器 localStorage 里旧的占位内容」长期覆盖新填的内容。 */
+export const CONTENT_VERSION = 'v2-resume-2026-08-24'
+
 const store = typeof localStorage !== 'undefined' ? localStorage : null
 const LANGS = ['zh', 'en']
 
@@ -147,16 +152,19 @@ function normalizeState(state) {
 function loadInitial() {
   const base = normalizeContentDefault(cloneDeep(CONTENT))
 
-  /* 桌面内容：原键（旧数据 { tpl: { lang: ns } } 兼容） */
+  /* 读取持久化桌面内容：带版本标记；旧格式（无 v 字段）或版本不匹配一律忽略 */
   const saved = store?.getItem(STORAGE_KEY)
   if (saved) {
     try {
       const parsed = JSON.parse(saved)
-      for (const [tpl, branches] of Object.entries(parsed)) {
-        if (!base[tpl]) base[tpl] = { desktop: {}, mobile: {} }
-        for (const lang of LANGS) {
-          if (branches?.[lang] && typeof branches[lang] === 'object') {
-            base[tpl].desktop[lang] = mergeDeep(base[tpl].desktop[lang] || {}, branches[lang])
+      const data = (parsed && typeof parsed === 'object' && parsed.v === CONTENT_VERSION) ? parsed.data : null
+      if (data) {
+        for (const [tpl, branches] of Object.entries(data)) {
+          if (!base[tpl]) base[tpl] = { desktop: {}, mobile: {} }
+          for (const lang of LANGS) {
+            if (branches?.[lang] && typeof branches[lang] === 'object') {
+              base[tpl].desktop[lang] = mergeDeep(base[tpl].desktop[lang] || {}, branches[lang])
+            }
           }
         }
       }
@@ -165,17 +173,20 @@ function loadInitial() {
     }
   }
 
-  /* 手机覆盖补丁：新键 */
+  /* 手机覆盖补丁：新键（同样带版本标记） */
   const savedMobile = store?.getItem(MOBILE_STORAGE_KEY)
   if (savedMobile) {
     try {
       const parsed = JSON.parse(savedMobile)
-      for (const [tpl, branches] of Object.entries(parsed)) {
-        if (!base[tpl]) base[tpl] = { desktop: {}, mobile: {} }
-        if (!base[tpl].mobile || typeof base[tpl].mobile !== 'object') base[tpl].mobile = {}
-        for (const lang of LANGS) {
-          if (branches?.[lang] && typeof branches[lang] === 'object') {
-            base[tpl].mobile[lang] = mergeDeep(base[tpl].mobile[lang] || {}, branches[lang])
+      const data = (parsed && typeof parsed === 'object' && parsed.v === CONTENT_VERSION) ? parsed.data : null
+      if (data) {
+        for (const [tpl, branches] of Object.entries(data)) {
+          if (!base[tpl]) base[tpl] = { desktop: {}, mobile: {} }
+          if (!base[tpl].mobile || typeof base[tpl].mobile !== 'object') base[tpl].mobile = {}
+          for (const lang of LANGS) {
+            if (branches?.[lang] && typeof branches[lang] === 'object') {
+              base[tpl].mobile[lang] = mergeDeep(base[tpl].mobile[lang] || {}, branches[lang])
+            }
           }
         }
       }
@@ -219,8 +230,8 @@ function persist() {
       const m = branches?.mobile
       if (m && typeof m === 'object' && Object.keys(m).length) mobileOut[tpl] = m
     }
-    store?.setItem(STORAGE_KEY, JSON.stringify(desktopOut))
-    store?.setItem(MOBILE_STORAGE_KEY, JSON.stringify(mobileOut))
+    store?.setItem(STORAGE_KEY, JSON.stringify({ v: CONTENT_VERSION, data: desktopOut }))
+    store?.setItem(MOBILE_STORAGE_KEY, JSON.stringify({ v: CONTENT_VERSION, data: mobileOut }))
   } catch (e) {
     console.warn('[useContent] 持久化失败：', e)
   }

@@ -15,7 +15,9 @@ import { useI18n } from '@/i18n'
 import { MODULE_LABELS } from '@/config/site.config'
 import { useConsole } from '@/composables/useConsole'
 import { useSelection } from '@/composables/useSelection'
+import { getEditable } from '@/composables/useEditableRegistry'
 import ContentField from './ContentField.vue'
+import FooterSocialsEditor from './FooterSocialsEditor.vue'
 
 const { version } = useVersion()
 const { lang } = useI18n()
@@ -30,6 +32,21 @@ const allModules = computed(() => getTemplateModules(version.value))
 const selected = computed(() =>
   allModules.value.find((m) => m.id === selectedModuleId.value) ?? null
 )
+
+/* ---------- 当前模块注册的可编辑字段白名单 ----------
+   模块通过 useEditableElement(config.id, [...]) 注册其真实可编辑元素；
+   右侧编辑面板据此只渲染这些字段，避免把 i18n 基础层带进来的、
+   当前模板并未渲染的冗余键（subtitle/lead/body 等）一并列出。
+   特殊：footer.socials 用专门编辑器（FooterSocialsEditor），
+   从通用 ContentField 白名单剔除（避免 base64 图标长串 + 通用数组 UI）。 */
+const editableKeys = computed(() => {
+  const m = selected.value
+  if (!m) return []
+  const reg = getEditable(m.id)
+  const isFooter = (m.type ?? m.id) === 'footer'
+  return (Array.isArray(reg) ? reg.map((i) => i.key) : [])
+    .filter((k) => !(isFooter && k === 'socials'))
+})
 
 /* ---------- 版本切换后校验选中项（无效则回退第一个） ---------- */
 watch(version, () => {
@@ -148,8 +165,14 @@ onBeforeUnmount(() => { clearTimeout(jumpTimer) })
       <!-- ===== 文字内容（通用递归编辑器） ===== -->
       <section class="me-tab__card glass">
         <h4 class="me-tab__card-title">{{ contentLabel[lang] }} · {{ poolName(selected.type ?? selected.id) }}</h4>
-        <ContentField :path="nsOf(selected)" :label="poolName(selected.type ?? selected.id)" :depth="0" />
+        <ContentField :path="nsOf(selected)" :label="poolName(selected.type ?? selected.id)" :depth="0" :allow-keys="editableKeys" />
       </section>
+
+      <!-- ===== 页脚专属：社交图标编辑器（需求 2） ===== -->
+      <section v-if="(selected.type ?? selected.id) === 'footer'" class="me-tab__card glass">
+        <FooterSocialsEditor :module-id="selected.id" :lang="lang" />
+      </section>
+
       <p class="me-tab__hint">{{ configHint[lang] }}</p>
     </template>
 

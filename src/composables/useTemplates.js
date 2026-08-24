@@ -41,6 +41,11 @@ import { effectiveDevice as activeDevice } from '@/composables/useDevice'
 
 export const STORAGE_KEY = 'resume-site.templates'
 
+/* 模板编排版本号：模板层默认编排（site.config.js VERSIONS）有实质变更时 +1。
+   持久化编排带版本标记；加载时版本不匹配 → 忽略旧数据（用最新默认编排）。
+   防止浏览器 localStorage 里的旧编排长期覆盖新默认。 */
+export const TEMPLATE_VERSION = 'v3-layout-2026-08-24'
+
 const store = typeof localStorage !== 'undefined' ? localStorage : null
 
 /* ---------- 工具 ---------- */
@@ -97,9 +102,13 @@ function loadInitial() {
   if (saved) {
     try {
       const parsed = JSON.parse(saved)
-      for (const [id, val] of Object.entries(parsed)) {
-        if (!base[id]) continue
-        base[id] = normalizeEntry(val, id)
+      /* 带版本标记：旧格式（无 v 字段）或版本不匹配 → 忽略，用最新默认编排 */
+      const data = (parsed && typeof parsed === 'object' && parsed.v === TEMPLATE_VERSION) ? parsed.data : null
+      if (data) {
+        for (const [id, val] of Object.entries(data)) {
+          if (!base[id]) continue
+          base[id] = normalizeEntry(val, id)
+        }
       }
     } catch (e) {
       console.warn('[useTemplates] 模板持久化数据损坏，已回退默认：', e)
@@ -113,7 +122,7 @@ export const templates = ref(loadInitial())
 
 function persist() {
   try {
-    store?.setItem(STORAGE_KEY, JSON.stringify(templates.value))
+    store?.setItem(STORAGE_KEY, JSON.stringify({ v: TEMPLATE_VERSION, data: templates.value }))
   } catch (e) {
     console.warn('[useTemplates] 持久化失败：', e)
   }

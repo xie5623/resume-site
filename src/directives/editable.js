@@ -37,6 +37,7 @@ import {
 import { editing } from '@/composables/useEditingMode'
 import { getElementStyle } from '@/composables/useElementStyle'
 import { resolveListItemPath } from '@/composables/useItemPath'
+import { applyElementStyle } from '@/directives/elementStyle'
 
 export const vEditable = {
   mounted(el, binding) {
@@ -154,6 +155,18 @@ export const vEditable = {
         st.removeProperty('max-width')
         st.removeProperty('width')
         st.removeProperty('z-index')
+      }
+
+      /* ---------- 元素级样式（字号/强调/自适应框）统一落地 ----------
+         修复「选中元素调字号滑块没反应」（用户问题 2）：v-element-style
+         指令只挂在部分元素的 title 上；这里对【所有】可编辑元素应用元素级
+         补丁，使任意可编辑元素都能响应元素级字号缩放（--fs-scale +
+         fit-content 自适应框）、渐变强调。
+         - 元素已挂 v-element-style（data-el-style-key 存在）时跳过，
+           由该指令负责，避免双写冲突（其逻辑与本函数一致）。
+         - applyElementStyle 内部对无补丁元素是「清理」语义（无副作用）。 */
+      if (!el.dataset.elStyleKey) {
+        applyElementStyle(el, m, k)
       }
     }
     /* 用 getter 精确追踪：layout 是嵌套响应式（enabled/positions 内部

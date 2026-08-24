@@ -75,35 +75,21 @@ export const EDUCATION_CONTENT = {
     }
   },
 
-  /* ===================== 应届生版：本科学历占位 ===================== */
+  /* ===================== 应届生版：本科学历 ===================== */
   graduate: {
     zh: {
       education: {
         kicker: 'EDUCATION',
         title: '教育背景',
-        subtitle: '本科学历 · 计算机科学与技术（2021—2025）',
+        subtitle: '示例大学 · 示例专业（占位）',
         period: '时间',
         items: [
           {
-            school: 'XX大学',
-            major: '计算机科学与技术 · 本科',
-            tag: '学士学位',
-            desc: '主修数据结构、操作系统、计算机网络；GPA 3.6/4.0，获校级学业奖学金。',
-            period: '2021 — 2025'
-          },
-          {
-            school: 'XX中学',
-            major: '理科方向',
-            tag: '高中',
-            desc: '理科背景，数学基础扎实，编程启蒙阶段。',
-            period: '2018 — 2021'
-          },
-          {
-            school: '在线学习平台',
-            major: '前端开发 · 微专业',
-            tag: '在线证书',
-            desc: '系统性自学 Vue / TypeScript / 工程化，完成多个实战项目。',
-            period: '2024'
+            school: '示例大学',
+            major: '示例学院 · 示例专业',
+            tag: '本科在读',
+            desc: '主修课程等占位说明文字，用于展示教育卡片排版效果。可在控制台编辑为自己的真实学校与专业。',
+            period: '2024.09 — 2028.06'
           }
         ]
       }
@@ -112,29 +98,15 @@ export const EDUCATION_CONTENT = {
       education: {
         kicker: 'EDUCATION',
         title: 'Education',
-        subtitle: 'B.S. in Computer Science (2021—2025)',
+        subtitle: 'Example University · Example Major (placeholder)',
         period: 'Period',
         items: [
           {
-            school: 'XX University',
-            major: 'B.S. in Computer Science',
-            tag: "Bachelor's Degree",
-            desc: 'Coursework: data structures, OS, computer networks. GPA 3.6/4.0, merit scholarship.',
-            period: '2021 — 2025'
-          },
-          {
-            school: 'XX High School',
-            major: 'Science Track',
-            tag: 'High School',
-            desc: 'Science background with solid math foundations and early programming interest.',
-            period: '2018 — 2021'
-          },
-          {
-            school: 'Online Learning Platform',
-            major: 'Frontend · Micro-degree',
-            tag: 'Online Certificate',
-            desc: 'Self-paced learning of Vue / TypeScript / engineering, with several hands-on projects.',
-            period: '2024'
+            school: 'Example University',
+            major: 'Example School · Example Major',
+            tag: 'Undergraduate (in progress)',
+            desc: 'Placeholder for your real coursework. Edit this in the console to add your actual school and major.',
+            period: 'Sep 2024 — Jun 2028'
           }
         ]
       }

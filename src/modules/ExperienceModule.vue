@@ -123,6 +123,12 @@ function badgeText(job) {
           </article>
         </li>
       </ol>
+
+      <!-- ======== 正在丰富中占位卡（更多经历整理中） ======== -->
+      <div class="hm-exp__more" aria-label="正在丰富中">
+        <span class="hm-exp__more-dots" aria-hidden="true">···</span>
+        <span class="hm-exp__more-text">正在丰富中</span>
+      </div>
     </div>
   </section>
 </template>
@@ -320,4 +326,25 @@ function badgeText(job) {
 .hm-exp.is-mobile .hm-exp__list-badge { min-width: 0; align-self: flex-start; }
 .hm-exp.is-mobile .hm-exp__role { font-size: calc(var(--fs-md) * var(--fs-scale)); }
 .hm-exp.is-mobile .hm-exp__desc { font-size: var(--fs-sm); }
+
+/* ==================== 正在丰富中占位卡 ==================== */
+.hm-exp__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+.hm-exp__more-dots {
+  font-family: var(--font-mono);
+  letter-spacing: 0.3em;
+  color: var(--accent-cyan);
+}
 </style>

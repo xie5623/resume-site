@@ -29,6 +29,17 @@ import { vElementStyle } from '@/directives/elementStyle'
 /* 编辑器：复制/粘贴动作编排 + Ctrl+C / Ctrl+V 快捷键（需求 6，加载即绑定） */
 import '@/composables/useEditorActions'
 
+/* ---------- Edge 兼容层 ---------- */
+
+/* 检测 Edge → <html data-browser="edge">（CSS 据此对 Edge 做针对性
+   合成优化，见 glass.css 的导航去毛玻璃规则）。 */
+if (typeof window !== 'undefined') {
+  const isEdge =
+    /Edg\//i.test(navigator.userAgent) ||
+    (navigator.userAgentData?.brands || []).some((b) => /Edg/i.test(b.brand || ''))
+  if (isEdge) document.documentElement.setAttribute('data-browser', 'edge')
+}
+
 /* 同步文档标题（i18n 品牌名优先；版本品牌兜底——挂载后 App 会再跟随版本刷新） */
 document.title = t('common.brand') || getVersionBrand(DEFAULT_VERSION, 'zh')
 

@@ -33,8 +33,10 @@ const hasWindow = typeof window !== 'undefined'
 
 /* ---------- 独立判断函数（非响应式，供 animator 直接调用） ---------- */
 export function isMotionReduced() {
-  if (!hasWindow || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  /* 本站覆盖系统「减少动态」：站长明确要求保留完整动画（技能浮动/
+     入场动效等），避免 Edge 等浏览器误开 reduce 导致动画全失效。
+     如需恢复无障碍降级，改回：matchMedia('(prefers-reduced-motion: reduce)').matches */
+  return false
 }
 
 export function isNarrowScreen(width = hasWindow ? window.innerWidth : 0) {

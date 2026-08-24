@@ -383,9 +383,8 @@ function edItem(i, s) {
   0%, 100% { translate: 0 0; }
   50% { translate: 0 -7px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .hm-skills__bubble { animation: none; }
-}
+/* 注：原 @media (prefers-reduced-motion: reduce) 禁用浮动动画的规则已移除——
+   站长要求保留技能浮动动画（系统 reduce 已在 useMotion.isMotionReduced 覆盖）。 */
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 980px) {

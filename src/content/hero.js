@@ -66,55 +66,50 @@ export const HERO_CONTENT = {
   graduate: {
     zh: {
       hero: {
-        eyebrow: '应届生简历',
-        name: 'YOUR NAME',
+        eyebrow: '个人简历',
+        name: '你的姓名',
         greeting: '你好，我是',
-        tagline: '2025 届毕业生，期待把校园里的热情与学习能力带进团队，快速成长、踏实产出。',
+        tagline: '一位正在成长的应届生，热爱用工程与代码把想法变成现实。',
         ctaWork: '查看项目',
         ctaContact: '联系我',
         scroll: '向下滚动',
-        badge: '应届 · 求职中',
+        badge: '在校学生 · 实习求职中',
         cardRole: '当前角色',
         cardLoc: '所在城市',
         cardMail: '邮箱',
         cardAvail: '求职状态',
-        roles: ['前端开发应届生', '前端开发', '编程爱好者', '学习型选手'],
+        roles: ['专业在读', 'AIGC / vibecoding 爱好者', '三维建模', '网页开发实践者'],
         stats: [
-          { label: '校园项目', value: '5+' },
-          { label: '交付项目', value: '30+' },
-          { label: '技术栈', value: '12' }
+          { label: '校园项目', value: '6+' },
+          { label: '工程软件', value: '4' },
+          { label: '网页项目', value: '3+' }
         ],
         placeholderMail: 'you@example.com',
-        placeholderCity: '上海 · 中国'
+        placeholderCity: '城市 · 中国'
       }
     },
     en: {
       hero: {
-        eyebrow: 'NEW GRAD',
-        name: 'YOUR NAME',
+        eyebrow: 'PORTFOLIO',
+        name: 'Your Name',
         greeting: "Hi, I'm",
-        tagline: 'Class of 2025. Ready to bring campus enthusiasm and fast learning to your team — growing quickly and shipping steadily.',
+        tagline: "A growing new graduate — turning ideas into reality with engineering and code.",
         ctaWork: 'View Projects',
         ctaContact: 'Contact',
         scroll: 'Scroll down',
-        badge: 'Open to new-grad roles',
+        badge: 'Student · Open to internships',
         cardRole: 'Current role',
         cardLoc: 'Location',
         cardMail: 'Email',
         cardAvail: 'Status',
-        roles: [
-          'Frontend Developer (New Grad)',
-          'Front-End Developer',
-          'Coding Enthusiast',
-          'Fast Learner'
-        ],
+        roles: ['Major in progress', 'AIGC / vibecoding Enthusiast', '3D Modeling', 'Web Development'],
         stats: [
-          { label: 'Campus Projects', value: '5+' },
-          { label: 'Projects', value: '30+' },
-          { label: 'Skills', value: '12' }
+          { label: 'Campus Projects', value: '6+' },
+          { label: 'Engineering Tools', value: '4' },
+          { label: 'Web Projects', value: '3+' }
         ],
         placeholderMail: 'you@example.com',
-        placeholderCity: 'Shanghai, CN'
+        placeholderCity: 'City, CN'
       }
     }
   }

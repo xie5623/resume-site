@@ -119,6 +119,23 @@
   box-shadow: 0 0 0 3px var(--accent-cyan-soft);
 }
 
+/* ============================================================
+   Edge 专用：顶部固定导航去毛玻璃（只影响导航，其余玻璃保持原样）
+   ------------------------------------------------------------
+   背景：Edge 用 GaneshGL（OpenGL）渲染后端时，「position:sticky +
+   backdrop-filter:blur(40px)」会在滚动/首屏动画期间逐帧重采样模糊，
+   是 Chromium 已知的合成闪烁来源（首屏动画正好发生在导航正下方）。
+   修法：Edge 下把导航毛玻璃换成纯色深底（视觉接近，消除逐帧重采样）。
+   Chrome 等其它浏览器不受影响，保持原有毛玻璃。
+   ============================================================ */
+[data-browser='edge'] .site-nav,
+[data-browser='edge'] .site-nav__mobile {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(8, 12, 24, 0.94);
+  border-bottom: 1px solid var(--glass-border);
+}
+
 /* ---------- 玻璃容器约束 ---------- */
 .container {
   width: 100%;

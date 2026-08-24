@@ -127,6 +127,12 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
           </div>
         </article>
       </div>
+
+      <!-- ======== 正在丰富中占位卡（更多项目整理中） ======== -->
+      <div class="hm-proj__more" aria-label="正在丰富中">
+        <span class="hm-proj__more-dots" aria-hidden="true">···</span>
+        <span class="hm-proj__more-text">正在丰富中</span>
+      </div>
     </div>
   </section>
 </template>
@@ -304,4 +310,25 @@ const extTarget = (u) => (/^https?:\/\//i.test(linkOf(u))) ? '_blank' : undefine
 .hm-proj.is-mobile .hm-proj__feature-art { display: none; }
 .hm-proj.is-mobile .hm-proj__links { flex-wrap: wrap; }
 .hm-proj.is-mobile .hm-proj__links .glass-btn { flex: 1 1 130px; text-align: center; justify-content: center; }
+
+/* ==================== 正在丰富中占位卡 ==================== */
+.hm-proj__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+.hm-proj__more-dots {
+  font-family: var(--font-mono);
+  letter-spacing: 0.3em;
+  color: var(--accent-cyan);
+}
 </style>

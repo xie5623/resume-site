@@ -19,8 +19,8 @@
        （响应式 store，控制台写它 → 页面实时变），不要直接改本文件。
    ============================================================ */
 
-/* 项目仓库地址：导出成品的末尾署名链接指向这里 */
-export const REPO_URL = 'https://github.com/hang5623/resume-site'
+/* 项目仓库地址：导出成品的末尾署名链接指向这里（部署前请改成你的仓库地址） */
+export const REPO_URL = 'https://github.com/yourname/resume-site'
 
 /* 允许的模块 id（注册表校验用） */
 export const MODULE_IDS = [
@@ -135,7 +135,9 @@ export const DEFAULT_DEVICE = 'desktop'
 export const VERSION_IDS = ['senior', 'graduate']
 
 /** 默认版本：无参调用（getEnabledModules() 等）时使用的版本 */
-export const DEFAULT_VERSION = 'senior'
+/* 站长本人为在读本科生，默认用「应届生」模板（graduate）——其内容已按
+   真实简历填写；若切到 senior（工作经历）版，内容为占位待填。 */
+export const DEFAULT_VERSION = 'graduate'
 
 /**
  * 多版本配置字典：版本 id → 完整站点配置。
@@ -190,11 +192,12 @@ export const VERSIONS = {
   /* -------------------- 应届生版 -------------------- */
   /*
    * 编排（T3 module-builder 已细化）：
-   *   hero → education(前移) → skills → projects(靠前) → experience(实习) → certificates → contact → footer
-   * - education 第 1 位：应届生以本科学历为卖点（占位：XX大学 / 计算机科学与技术 / 2021—2025）
+   *   hero → about → education → skills → projects → experience(实习) → contact → footer
+   * - about 保留：展示「自我评价」（站长要求加回）
+   * - education 第 2 位：应届生以本科学历为卖点（占位：XX大学 / 计算机科学与技术 / 2021—2025）
    * - experience 复用同一时间线组件，文案为「实习经历」应届生口吻（组件内按版本取 i18n 键）
-   * - 精简掉 about / portfolio（应届生不铺陈，聚焦学历 + 技能 + 项目）
-   * - 动效更活泼：hero 用 zoom-in、education 用 zoom-in 突出学历亮点
+   * - 精简掉 certificates / portfolio（证书栏暂空，站长要求不展示）
+   * - 动效更活泼：hero 用 fade-in、education 用 zoom-in 突出学历亮点
    * - experience 模块 label 覆盖为「实习经历」，导航随版本正确显示
    */
   graduate: {
@@ -205,11 +208,11 @@ export const VERSIONS = {
     stickyNav: true,
     modules: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in', textAnim: 'letter-float', variant: 'a' }),
-      moduleCfg('education',    { order: 1,  animation: 'zoom-in', textAnim: 'letter-stagger' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up', variant: 'd' }),
-      moduleCfg('projects',     { order: 3,  animation: 'fade-up', variant: 'b' }),
-      moduleCfg('experience',   { order: 4,  animation: 'fade-up', label: { zh: '实习经历', en: 'Internship' } }),
-      moduleCfg('certificates', { order: 5,  animation: 'fade-up', variant: 'c' }),
+      moduleCfg('about',        { order: 1,  animation: 'fade-up', variant: 'a' }),
+      moduleCfg('education',    { order: 2,  animation: 'zoom-in', textAnim: 'letter-stagger' }),
+      moduleCfg('skills',       { order: 3,  animation: 'fade-up', variant: 'd' }),
+      moduleCfg('projects',     { order: 4,  animation: 'fade-up', variant: 'b' }),
+      moduleCfg('experience',   { order: 5,  animation: 'fade-up', label: { zh: '实习经历', en: 'Internship' } }),
       moduleCfg('contact',      { order: 6,  animation: 'fade-up' }),
       moduleCfg('footer',       { order: 7,  animation: 'none', textAnim: 'none' })
     ],
@@ -221,11 +224,11 @@ export const VERSIONS = {
          experience 卡片列表 variant c（少占高度） */
     mobile: [
       moduleCfg('hero',         { order: 0,  animation: 'fade-in',  textAnim: 'none', variant: 'a', fontScale: 0.92 }),
-      moduleCfg('education',    { order: 1,  animation: 'fade-up',  variant: 'a' }),
-      moduleCfg('skills',       { order: 2,  animation: 'fade-up',  variant: 'd' }),
-      moduleCfg('projects',     { order: 3,  animation: 'fade-up',  variant: 'b' }),
-      moduleCfg('experience',   { order: 4,  animation: 'fade-up',  variant: 'c', label: { zh: '实习经历', en: 'Internship' } }),
-      moduleCfg('certificates', { order: 5,  animation: 'fade-up',  variant: 'c' }),
+      moduleCfg('about',        { order: 1,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('education',    { order: 2,  animation: 'fade-up',  variant: 'a' }),
+      moduleCfg('skills',       { order: 3,  animation: 'fade-up',  variant: 'd' }),
+      moduleCfg('projects',     { order: 4,  animation: 'fade-up',  variant: 'b' }),
+      moduleCfg('experience',   { order: 5,  animation: 'fade-up',  variant: 'c', label: { zh: '实习经历', en: 'Internship' } }),
       moduleCfg('contact',      { order: 6,  animation: 'fade-up',  variant: 'a' }),
       moduleCfg('footer',       { order: 7,  animation: 'none', textAnim: 'none' })
     ]

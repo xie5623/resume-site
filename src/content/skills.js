@@ -58,23 +58,18 @@ export const SKILLS_CONTENT = {
   graduate: {
     zh: {
       skills: {
-        eyebrow: '技术能力',
-        title: '专业技能',
-        sub: '本科期间掌握的核心技术栈，仍在持续学习中。',
+        eyebrow: '技能能力',
+        title: '掌握技能',
+        sub: '熟练使用办公与工程软件，掌握 AIGC 与 vibecoding 编程，持续拓展 Web 开发。',
         level: '熟练度',
         items: [
-          { name: 'HTML / CSS', level: 90 },
-          { name: 'JavaScript (ES6+)', level: 86 },
-          { name: 'Vue 3', level: 85 },
-          { name: 'TypeScript', level: 80 },
-          { name: 'Vite / Build', level: 78 },
-          { name: 'Git / Workflow', level: 82 },
-          { name: 'Node.js', level: 75 },
-          { name: 'GSAP Motion', level: 74 },
-          { name: 'Figma / Design', level: 72 },
-          { name: 'Python', level: 70 },
-          { name: 'React', level: 68 },
-          { name: 'SQL / Database', level: 65 }
+          { name: 'WPS / 办公软件', level: 92 },
+          { name: 'AIGC 应用', level: 88 },
+          { name: 'SolidWorks 三维建模', level: 86 },
+          { name: 'vibecoding 编程', level: 84 },
+          { name: 'AutoCAD 工程制图', level: 82 },
+          { name: '网页开发 (Web)', level: 76 },
+          { name: '单片机开发', level: 74 }
         ]
       }
     },
@@ -82,21 +77,16 @@ export const SKILLS_CONTENT = {
       skills: {
         eyebrow: 'SKILLS',
         title: 'Skills',
-        sub: 'Core stack learned during undergrad — still learning and growing.',
+        sub: 'Proficient with office & engineering software, skilled in AIGC and vibecoding, and growing in web development.',
         level: 'Level',
         items: [
-          { name: 'HTML / CSS', level: 90 },
-          { name: 'JavaScript (ES6+)', level: 86 },
-          { name: 'Vue 3', level: 85 },
-          { name: 'TypeScript', level: 80 },
-          { name: 'Vite / Build', level: 78 },
-          { name: 'Git / Workflow', level: 82 },
-          { name: 'Node.js', level: 75 },
-          { name: 'GSAP Motion', level: 74 },
-          { name: 'Figma / Design', level: 72 },
-          { name: 'Python', level: 70 },
-          { name: 'React', level: 68 },
-          { name: 'SQL / Database', level: 65 }
+          { name: 'WPS / Office Suite', level: 92 },
+          { name: 'AIGC Applications', level: 88 },
+          { name: 'SolidWorks 3D Modeling', level: 86 },
+          { name: 'Vibecoding', level: 84 },
+          { name: 'AutoCAD Engineering Drawing', level: 82 },
+          { name: 'Web Development', level: 76 },
+          { name: 'Microcontroller Development', level: 74 }
         ]
       }
     }

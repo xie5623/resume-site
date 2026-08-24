@@ -44,6 +44,72 @@ function parseBinding(binding, el) {
   return null
 }
 
+/**
+ * applyElementStyle(el, moduleId, key) — 把元素级样式补丁应用到元素上。
+ * 与 v-element-style 指令共用同一实现；v-editable 也调用它，让
+ * 【所有】可编辑元素都能响应元素级字号/强调（不只是挂了 v-element-style
+ * 的 title）——修复「选中元素调字号滑块没反应」（用户问题 2）。
+ */
+export function applyElementStyle(el, moduleId, key) {
+  if (!el || !moduleId || !key) return
+  /* 三层回退（元素级 → 模块级 → 默认）：与 ARCHITECTURE §13.1 一致，
+     模块级 emphasize / fontScale 在无元素级补丁时保留（不误删）。 */
+  const list = getTemplateDeviceModules(version.value)
+  const mod = list.find((x) => x.id === moduleId) ?? {}
+  const resolved = resolveElementStyle(moduleId, key, mod)
+  const st = el.style
+
+  /* fontScale：父级已生效 --fs-scale × 元素/模块比值 */
+  if (resolved.fontScale !== 1) {
+    let parentScale = 1
+    const parent = el.parentElement
+    if (parent && typeof getComputedStyle === 'function') {
+      const v = parseFloat(getComputedStyle(parent).getPropertyValue('--fs-scale'))
+      if (Number.isFinite(v) && v > 0) parentScale = v
+    }
+    const moduleScale = typeof mod.fontScale === 'number' ? mod.fontScale : 1
+    const factor = moduleScale ? resolved.fontScale / moduleScale : 1
+    st.setProperty('--fs-scale', String(parentScale * factor))
+
+    /* 继承型元素字号补足（用户问题 2 根治）：自消费 --fs-scale 的元素
+       （title 等，font-size 用 calc(var(--fs-*) * var(--fs-scale))）字号会随
+       注入的 --fs-scale 自动缩放；但段落等【继承型】元素（computed 字号 =
+       父级字号，自身无 font-size 规则）不会重算——即使 --fs-scale 已注入。
+       判定继承型：el 计算字号 ≈ 父级计算字号（差值 < 0.01px）。
+       处理：显式写 font-size = 父级字号（已含模块级缩放）× 元素/模块比值
+       （= 基准字号 × 元素级缩放），让框随字号真正变大变小。 */
+    const elFs = parseFloat(getComputedStyle(el).fontSize)
+    const pFs = parent ? parseFloat(getComputedStyle(parent).fontSize) : NaN
+    if (Number.isFinite(elFs) && Number.isFinite(pFs) && Math.abs(elFs - pFs) < 0.01) {
+      const ratio = moduleScale ? resolved.fontScale / moduleScale : 1
+      st.fontSize = `${(elFs * ratio)}px`
+    }
+  } else {
+    st.removeProperty('--fs-scale')
+    st.removeProperty('font-size')
+  }
+
+  /* emphasize：渐变强调类（resolve 已含模块级回退，无补丁不误删） */
+  el.classList.toggle('text-emphasize', resolved.emphasize === true)
+
+  /* 字号缩放【元素级补丁】（≠1）时：让元素框 fit-content 随内容/字号自适应
+     变大变小（用户问题4）。只认元素级补丁（getElementStyle 原始 patch），
+     不认模块级字号回退——模块级字号是整块统一缩放，不该把每个标题框改成
+     fit-content（会破坏 hero 等模块的块级布局）。 */
+  const rawPatch = getElementStyle(moduleId, key)
+  if (rawPatch && typeof rawPatch.fontScale === 'number' && rawPatch.fontScale !== 1) {
+    st.width = 'fit-content'
+    st.maxWidth = '100%'
+  } else if (el.style.position !== 'absolute') {
+    /* 守卫：editable.js 已摆放元素设了内联 position:absolute 并写入
+       「拖拽记录宽度」（无字号补丁时 st.width = pos.w px）——此处跳过，
+       避免删掉已保存的位置宽度（否则刷新后标题又缩回内容宽）。
+       流式元素 removeProperty 本就是无害空操作，守卫零副作用。 */
+    st.removeProperty('width')
+    st.removeProperty('max-width')
+  }
+}
+
 export const vElementStyle = {
   mounted(el, binding) {
     const parsed = parseBinding(binding, el)
@@ -56,49 +122,7 @@ export const vElementStyle = {
 
     function apply() {
       if (!el._elStyle) return
-      const { moduleId, key } = el._elStyle
-      if (!moduleId || !key) return
-      /* 三层回退（元素级 → 模块级 → 默认）：与 ARCHITECTURE §13.1 一致，
-         模块级 emphasize / fontScale 在无元素级补丁时保留（不误删）。 */
-      const list = getTemplateDeviceModules(version.value)
-      const mod = list.find((x) => x.id === moduleId) ?? {}
-      const resolved = resolveElementStyle(moduleId, key, mod)
-      const st = el.style
-
-      /* fontScale：父级已生效 --fs-scale × 元素/模块比值 */
-      if (resolved.fontScale !== 1) {
-        let parentScale = 1
-        const parent = el.parentElement
-        if (parent && typeof getComputedStyle === 'function') {
-          const v = parseFloat(getComputedStyle(parent).getPropertyValue('--fs-scale'))
-          if (Number.isFinite(v) && v > 0) parentScale = v
-        }
-        const moduleScale = typeof mod.fontScale === 'number' ? mod.fontScale : 1
-        const factor = moduleScale ? resolved.fontScale / moduleScale : 1
-        st.setProperty('--fs-scale', String(parentScale * factor))
-      } else {
-        st.removeProperty('--fs-scale')
-      }
-
-      /* emphasize：渐变强调类（resolve 已含模块级回退，无补丁不误删） */
-      el.classList.toggle('text-emphasize', resolved.emphasize === true)
-
-      /* 字号缩放【元素级补丁】（≠1）时：让元素框 fit-content 随内容/字号自适应
-         变大变小（用户问题4）。只认元素级补丁（getElementStyle 原始 patch），
-         不认模块级字号回退——模块级字号是整块统一缩放，不该把每个标题框改成
-         fit-content（会破坏 hero 等模块的块级布局）。 */
-      const rawPatch = getElementStyle(moduleId, key)
-      if (rawPatch && typeof rawPatch.fontScale === 'number' && rawPatch.fontScale !== 1) {
-        st.width = 'fit-content'
-        st.maxWidth = '100%'
-      } else if (el.style.position !== 'absolute') {
-        /* 守卫：editable.js 已摆放元素设了内联 position:absolute 并写入
-           「拖拽记录宽度」（无字号补丁时 st.width = pos.w px）——此处跳过，
-           避免删掉已保存的位置宽度（否则刷新后标题又缩回内容宽）。
-           流式元素 removeProperty 本就是无害空操作，守卫零副作用。 */
-        st.removeProperty('width')
-        st.removeProperty('max-width')
-      }
+      applyElementStyle(el, el._elStyle.moduleId, el._elStyle.key)
     }
 
     /* 响应式追踪：绑定值变化 + 元素样式补丁变化都重算 */

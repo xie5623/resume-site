@@ -5,12 +5,14 @@
  * 默认配置 animation:'none' / textAnim:'none'（见 site.config.js），
  * 因此这里以静态展示为主，回到顶部按钮仍带平滑滚动。
  */
+import { computed } from 'vue'
 import { useModuleReveal } from '@/composables/moduleReveal'
 import { useVersion } from '@/composables/useVersion'
 import { useContent } from '@/content/useContent'
 import TextReveal from '@/components/TextReveal.vue'
 import { useEditableElement } from '@/composables/useEditableElement'
 import { useDeviceLayout } from '@/composables/useDeviceLayout'
+import { SOCIAL_PRESET_MAP } from '@/config/socialPresets'
 
 const props = defineProps({
   config: { type: Object, required: true },
@@ -26,7 +28,8 @@ const { ed } = useEditableElement(props.config.id, [
   { key: 'tagline', label: { zh: '标语', en: 'Tagline' }, type: 'text' },
   { key: 'rights', label: { zh: '版权', en: 'Rights' }, type: 'text' },
   { key: 'madeWith', label: { zh: '制作说明', en: 'Made with' }, type: 'text' },
-  { key: 'backToTop', label: { zh: '回到顶部', en: 'Back to top' }, type: 'text' }
+  { key: 'backToTop', label: { zh: '回到顶部', en: 'Back to top' }, type: 'text' },
+  { key: 'socials', label: { zh: '社交图标', en: 'Social icons' }, type: 'list' }
 ])
 
 /* ===================== 内容层（footer 命名空间，跟随模板+语言，可运行时编辑） ===================== */
@@ -34,25 +37,26 @@ const { version } = useVersion()
 const { get } = useContent()
 const T = (key) => get(version.value, props.lang, `footer.${key}`)
 
-const socials = [
-  {
-    label: 'GitHub',
-    href: 'https://github.com/',
-    path: 'M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z'
-  },
-  {
-    label: 'X (Twitter)',
-    href: 'https://x.com/',
-    path: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'
-  },
-  {
-    label: 'LinkedIn',
-    href: 'https://www.linkedin.com/',
-    path: 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z'
-  }
-]
+/* 页脚社交图标（需求 2）：数据驱动自内容层 footer.socials。
+   每项 { id, label, url, icon? }：
+     - id 命中预设（SOCIAL_PRESET_MAP）→ 内置 SVG path（fill=currentColor 贴合主题）
+     - 其他（id='custom' + icon dataURL）→ 自定义上传图标（CSS mask 渲染为主题色剪影）
+   只渲染「有 url」的项（url 为空 = 编辑中未填，成品页不显示空壳）。 */
+const socials = computed(() => {
+  const list = T('socials')
+  if (!Array.isArray(list)) return []
+  return list.filter((s) => s && typeof s.url === 'string' && s.url.trim())
+})
 
 const year = new Date().getFullYear()
+
+/* 构建时间戳（版本徽标）：构建时由 vite define 注入 __BUILD_TIME__，
+   用于确认当前跑的构建（本地预览/线上一致）。 */
+const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : ''
+/* 诊断：系统「减少动态效果」状态（Edge 若开启会让 CSS 动画失效/入场动画降级） */
+const reducedMotion = typeof window !== 'undefined'
+  ? (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  : false
 
 /* ---------- 入场状态（'none' 时 App 装配层立即标记 revealed） ---------- */
 const revealed = useModuleReveal(props.config.id)
@@ -79,14 +83,37 @@ function backToTop() {
         </p>
       </div>
 
-      <!-- 社交图标 -->
-      <ul class="footer__socials" aria-label="社交链接">
-        <li v-for="s in socials" :key="s.label">
-          <a class="footer__social" :href="s.href" target="_blank" rel="noopener noreferrer"
-             :aria-label="s.label" :title="s.label">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-              <path :d="s.path"></path>
+      <!-- 社交图标（数据驱动：预设 SVG / 自定义上传，均贴合主题色） -->
+      <ul v-if="socials.length" class="footer__socials" aria-label="社交链接">
+        <li v-for="s in socials" :key="s.id + ':' + s.label">
+          <a
+            class="footer__social"
+            :href="s.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            :aria-label="s.label"
+            :title="s.label"
+          >
+            <!-- 预设平台：内置 SVG（fill=currentColor → 自动跟随主题强调色） -->
+            <svg
+              v-if="SOCIAL_PRESET_MAP[s.id]"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path :d="SOCIAL_PRESET_MAP[s.id].path"></path>
             </svg>
+            <!-- 自定义上传图标：CSS mask + currentColor → 任意图标变成主题色剪影 -->
+            <span
+              v-else-if="s.icon"
+              class="footer__social-icon"
+              :style="{ '--s-icon': `url(${s.icon})` }"
+              aria-hidden="true"
+            ></span>
+            <!-- 兜底：无图标无预设 → 显示首字符 -->
+            <span v-else class="footer__social-fallback" aria-hidden="true">{{ String(s.label || '?').slice(0, 1) }}</span>
           </a>
         </li>
       </ul>
@@ -106,6 +133,8 @@ function backToTop() {
         © {{ year }} {{ T('name') }} · {{ T('rights') }}
       </p>
       <p class="footer__made" v-editable="ed('madeWith')">{{ T('madeWith') }}</p>
+      <!-- 版本徽标：确认运行的是哪次构建（build <时间戳>）+ 减少动态诊断 -->
+      <span class="footer__build" :title="'build ' + buildTime + (reducedMotion ? ' | reduced-motion: ON' : ' | reduced-motion: OFF')">{{ buildTime }}<span class="footer__build-diag" :class="{ 'footer__build-diag--on': reducedMotion }">{{ reducedMotion ? ' rM:ON' : ' rM:off' }}</span></span>
     </div>
   </footer>
 </template>
@@ -165,6 +194,20 @@ function backToTop() {
   background: var(--glass-bg-strong);
   transform: translateY(-2px);
 }
+/* 自定义上传图标：mask 抠形 + currentColor 填充 → 任意图标贴合当前主题色 */
+.footer__social-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  background-color: currentColor;
+  -webkit-mask: var(--s-icon) no-repeat center / contain;
+  mask: var(--s-icon) no-repeat center / contain;
+}
+.footer__social-fallback {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
 
 .footer__top {
   gap: var(--space-2);
@@ -189,6 +232,23 @@ function backToTop() {
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
+}
+.footer__build {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.35;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+.footer__build-diag {
+  margin-left: 4px;
+  font-weight: 700;
+  opacity: 1;
+  color: var(--text-muted);
+}
+.footer__build-diag--on {
+  color: #ff6b6b;
 }
 
 /* 移动端：居中堆叠 */

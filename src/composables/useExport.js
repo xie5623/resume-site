@@ -4,10 +4,11 @@
    把「用户配置好的简历站点」快照成一个【自包含单文件 HTML】：
      - 内联全部 CSS（序列化 document.styleSheets，@import 提前到顶部）
      - 剥离编辑器/工具 UI：控制台、选中框、内联编辑浮层、模块配置浮窗、
-       顶部导航的版本/语言/形态/设备/主题切换器（保留品牌与锚点链接）
+       顶部导航的版本/语言/形态/设备/主题切换器、页脚版本徽标
      - 剥离全部 <script>（静态快照无需运行时，可离线打开/分享/部署）
      - 强制所有模块入场动画到终态（滚动扫一遍 + GSAP flush + 安全网）
-     - 末尾追加「本开源项目仓库地址」署名（链接指向 REPO_URL）
+     - 成品【干净】：不含署名水印/仓库链接/任何脚本（求 star 提示在
+       点导出时由编辑面板弹出，见 ConsolePanel.vue）
    输出：直接触发浏览器下载一个 .html 文件。
    ============================================================ */
 import { nextTick } from 'vue'
@@ -15,7 +16,6 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { setMode } from './useMode'
 import { closeConsole } from './useConsole'
-import { REPO_URL } from '@/config/site.config'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -75,117 +75,10 @@ async function collectCss() {
   return [...imports, ...bodies].join('\n')
 }
 
-/* ===================== 导出署名水印 UI（自包含，不依赖主题变量） =====================
-   样式前缀 rc-*：独立小样式块，追加在导出内联 CSS 末尾，保证即使主题 CSS
-   缺失也能正常显示弹窗/按钮。 */
-const WATERMARK_CSS = `
-/* 导出署名水印：隐藏按钮 */
-.rc-hide {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  padding: 0 2px;
-  margin: 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  opacity: 0.85;
-}
-.rc-hide:hover { opacity: 1; }
-/* 求 star 弹窗遮罩 */
-.rc-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(8, 12, 24, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-.rc-modal {
-  max-width: 360px;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 26px 24px;
-  border-radius: 16px;
-  background: #0f172a;
-  border: 1px solid rgba(130, 165, 255, 0.35);
-  color: #e9effc;
-  text-align: center;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-}
-.rc-title { font-size: 16px; font-weight: 700; margin: 0 0 10px; }
-.rc-text { font-size: 13px; line-height: 1.7; color: rgba(214, 226, 255, 0.78); margin: 0 0 18px; }
-.rc-btn {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 0;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  border: 1px solid transparent;
-  margin-top: 8px;
-  font-family: inherit;
-}
-.rc-btn--star { color: #060b16; background: linear-gradient(135deg, #22d3ee, #a78bfa); }
-.rc-btn--star:hover { filter: brightness(1.08); }
-.rc-btn--ghost { color: rgba(214, 226, 255, 0.8); background: transparent; border-color: rgba(130, 165, 255, 0.35); }
-.rc-btn--ghost:hover { background: rgba(255, 255, 255, 0.06); }
-`
-
-/* ===================== 求 star 交互脚本（内联进导出文件末尾） =====================
-   行为：
-     - 点水印上的「隐藏署名」→ 弹出求 star 弹窗（不直接隐藏）
-     - 弹窗里「去 GitHub 点 Star」→ 新标签打开仓库 + 隐藏水印
-     - 「直接隐藏」/ 点遮罩 / Esc → 隐藏水印（不强制 star）
-     - 隐藏后写入 localStorage（key: resume-credit-hidden），同源下刷新不再出现 */
-function exportCreditScript(repoUrl, T) {
-  return `(function () {
-  var KEY = 'resume-credit-hidden';
-  var credit = document.querySelector('[data-export-credit]');
-  if (!credit) return;
-  var overlay = null;
-  function persist() { try { localStorage.setItem(KEY, '1'); } catch (e) {} }
-  function tearDown() {
-    if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    overlay = null;
-    document.removeEventListener('keydown', onKey);
-  }
-  function hideCredit() { persist(); tearDown(); if (credit.parentNode) credit.parentNode.removeChild(credit); }
-  function onKey(e) { if (e.key === 'Escape') hideCredit(); }
-  function showModal() {
-    if (overlay) return;
-    overlay = document.createElement('div');
-    overlay.className = 'rc-overlay';
-    overlay.innerHTML =
-      '<div class="rc-modal" role="dialog" aria-modal="true">' +
-        '<div class="rc-title">${T.modalTitle}</div>' +
-        '<p class="rc-text">${T.modalText}</p>' +
-        '<a class="rc-btn rc-btn--star" href="${repoUrl}" target="_blank" rel="noopener">${T.starBtn}</a>' +
-        '<button type="button" class="rc-btn rc-btn--ghost" data-rc-hide>${T.hideBtn}</button>' +
-      '</div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('[data-rc-hide]').addEventListener('click', hideCredit);
-    overlay.querySelector('.rc-btn--star').addEventListener('click', function () { hideCredit(); });
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) hideCredit(); });
-    document.addEventListener('keydown', onKey);
-  }
-  var hideBtn = credit.querySelector('[data-credit-hide]');
-  if (hideBtn) hideBtn.addEventListener('click', showModal);
-  var hidden = false;
-  try { hidden = localStorage.getItem(KEY) === '1'; } catch (e) {}
-  if (hidden) hideCredit();
-})();
-`
-}
+/* ===================== 导出成品保持干净 =====================
+   按用户要求：求 star 提示放在「点导出时」（编辑面板内弹窗，见
+   ConsolePanel.vue），成品文件不含署名水印、不含仓库链接、不含任何
+   脚本，干干净净的静态快照。 */
 
 /* ===================== 强制所有模块入场动画到终态 =====================
    动画初始隐藏态是 GSAP 写在模块根元素内联样式里的（opacity/transform），
@@ -229,7 +122,7 @@ async function forceRevealAll() {
 
 /* ===================== 快照 → 独立 HTML 字符串 ===================== */
 async function buildStandaloneHtml() {
-  const css = (await collectCss()) + '\n' + WATERMARK_CSS
+  const css = await collectCss()
   const root = document.documentElement.cloneNode(true)
 
   /* 剥离脚本与样式表链接（CSS 已内联） */
@@ -237,7 +130,7 @@ async function buildStandaloneHtml() {
 
   /* 剥离编辑器/工具 UI */
   root.querySelectorAll(
-    '.console-panel, .console-fab, .config-bar, .config-bar-pill, .sel-box, .ie'
+    '.console-panel, .console-fab, .config-bar, .config-bar-pill, .sel-box, .ie, .footer__build'
   ).forEach((n) => n.remove())
 
   /* 剥离顶部导航的工具切换器（版本/语言/形态/设备/主题/汉堡/下拉），
@@ -261,65 +154,50 @@ async function buildStandaloneHtml() {
   const head = root.querySelector('head')
   if (head) head.appendChild(style)
 
-  /* 末尾署名水印（可隐藏 · 隐藏前求 star，跟随当前语言） */
-  const htmlLang = document.documentElement.getAttribute('lang') || 'zh'
-  const isEn = htmlLang.toLowerCase().startsWith('en')
-  const T = {
-    text: isEn ? 'Generated with the open-source project {link}' : '本简历由开源项目 {link} 生成',
-    hide: isEn ? 'Hide credit' : '隐藏署名',
-    modalTitle: isEn ? '⭐ Like this resume template?' : '⭐ 喜欢这个简历模板吗？',
-    modalText: isEn
-      ? 'This resume is built with an open-source project. If you like it, give it a Star on GitHub — or just hide this credit.'
-      : '这份简历由开源项目生成。如果喜欢，欢迎去 GitHub 点个 Star 支持一下；不需要也可以直接隐藏署名。',
-    starBtn: isEn ? 'Star it on GitHub ⭐' : '去 GitHub 点 Star ⭐',
-    hideBtn: isEn ? 'Hide credit' : '直接隐藏'
-  }
-  const link = `<a href="${REPO_URL}" target="_blank" rel="noopener" style="color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;">${REPO_URL}</a>`
-
-  const credit = root.ownerDocument.createElement('div')
-  credit.setAttribute('data-export-credit', 'true')
-  credit.style.cssText = [
-    'display:flex',
-    'flex-wrap:wrap',
-    'align-items:center',
-    'justify-content:center',
-    'gap:10px',
-    'padding:18px 16px 24px',
-    'text-align:center',
-    'font-size:12px',
-    'line-height:1.7',
-    'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',
-    'letter-spacing:0.04em',
-    'color:inherit',
-    'opacity:0.75'
-  ].join(';')
-  credit.innerHTML = T.text.replace('{link}', link)
-    + `<button type="button" data-credit-hide class="rc-hide" title="${T.hide}" aria-label="${T.hide}">${T.hide}</button>`
-
-  const body = root.querySelector('body')
-  if (body) {
-    body.appendChild(credit)
-    /* 求 star 交互脚本（内联在导出文件末尾，剥离脚本那一步发生在它之前） */
-    const script = root.ownerDocument.createElement('script')
-    script.setAttribute('data-export-credit-js', 'true')
-    script.textContent = exportCreditScript(REPO_URL, T)
-    body.appendChild(script)
-  }
-
   return `<!DOCTYPE html>\n${root.outerHTML}`
 }
 
 /* ===================== 下载 ===================== */
-function download(html, filename) {
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
+function isChrome() {
+  return (
+    typeof navigator !== 'undefined' &&
+    /Chrome\//i.test(navigator.userAgent) &&
+    !/Edg\//i.test(navigator.userAgent) &&
+    !/OPR\//i.test(navigator.userAgent)
+  )
+}
+
+/**
+ * 触发下载。Chrome 走 File System Access API（原生「另存为」对话框）：
+ *   - 直接写文件，完全绕过 Chrome 下载管理器，规避部分 Chrome 环境
+ *     下程序化下载「显示 UUID 文件名 / 完成却不落盘」的问题；
+ *   - 用户取消（AbortError）静默返回；API 不可用/无手势则回退自动下载。
+ * Edge 及其余浏览器保持现有自动下载（data: URI + <a download>，已验证可靠）。
+ */
+async function download(html, filename) {
+  if (typeof window !== 'undefined' && window.showSaveFilePicker && isChrome()) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'HTML Document', accept: { 'text/html': ['.html'] } }]
+      })
+      const writable = await handle.createWritable()
+      await writable.write(html)
+      await writable.close()
+      return
+    } catch (e) {
+      if (e && e.name === 'AbortError') return /* 用户主动取消 */
+      /* 其他失败（无用户手势 / 安全限制等）→ 回退自动下载 */
+    }
+  }
   const a = document.createElement('a')
-  a.href = url
+  a.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(html)
   a.download = filename
+  a.style.display = 'none'
+  a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1500)
+  window.setTimeout(() => a.remove(), 1000)
 }
 
 /* ===================== 主入口 ===================== */
@@ -335,7 +213,7 @@ export async function exportStandaloneHtml({ fileName } = {}) {
     .replace(/[\\/:*?"<>|]/g, ' ')
     .trim()
     .replace(/\s+/g, '-')
-  download(html, fileName || `${safe || 'resume'}.html`)
+  await download(html, fileName || `${safe || 'resume'}.html`)
   return html.length
 }
 

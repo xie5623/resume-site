@@ -94,78 +94,20 @@ export const EXPERIENCE_CONTENT = {
       experience: {
         eyebrow: '实习轨迹',
         title: '实习经历',
-        sub: '本科期间的实习与项目实战，快速学习、结果导向。',
+        sub: '实习经历整理中，后续将持续补充。',
         now: '至今',
         present: '近期',
-        items: [
-          {
-            period: '2024.06 — 2024.09',
-            company: '某互联网公司 · 前端实习',
-            role: '前端开发实习生',
-            desc: '参与核心产品前端开发，独立完成 3 个功能模块并接入 CI/CD；将首屏加载耗时降低 40%，获 mentor 好评。',
-            tags: ['Vue 3', 'TypeScript', 'Vite', 'GSAP']
-          },
-          {
-            period: '2023.09 — 2024.01',
-            company: '某科技公司 · 全栈实习',
-            role: '全栈开发实习生',
-            desc: '参与内部管理系统前后端开发，用 Vue 3 + Node.js 完成数据看板模块，熟悉团队研发流程与代码规范。',
-            tags: ['React', 'Node.js', 'Webpack', 'CI/CD']
-          },
-          {
-            period: '2023.06 — 2023.08',
-            company: '某创业团队 · 开发实习',
-            role: 'Web 开发实习生',
-            desc: '从 0 到 1 搭建团队官网与落地页，负责移动端 H5 适配与动效实现，上线后支撑了首次产品推广活动。',
-            tags: ['Vue 2', 'Express', 'MongoDB', 'Nginx']
-          },
-          {
-            period: '2022.07 — 2022.09',
-            company: '某工作室 · 设计实习',
-            role: '前端开发实习生',
-            desc: '制作 UI 组件与页面原型，学习设计与开发协作方式，沉淀了第一个可展示的个人作品集页面。',
-            tags: ['JavaScript', 'ECharts', 'jQuery']
-          }
-        ]
+        items: []
       }
     },
     en: {
       experience: {
         eyebrow: 'INTERNSHIP',
         title: 'Internship',
-        sub: 'Internships and hands-on projects during undergrad — fast learner, results-driven.',
+        sub: 'Internship experience is being compiled — more to come soon.',
         now: 'Present',
         present: 'Recent',
-        items: [
-          {
-            period: 'Jun 2024 — Sep 2024',
-            company: 'Internet Company A · Frontend Intern',
-            role: 'Front-End Developer Intern',
-            desc: 'Built core product features, shipped 3 modules on my own with CI/CD; cut first-load time by 40% and got strong mentor feedback.',
-            tags: ['Vue 3', 'TypeScript', 'Vite', 'GSAP']
-          },
-          {
-            period: 'Sep 2023 — Jan 2024',
-            company: 'Tech Company B · Full-stack Intern',
-            role: 'Full-Stack Developer Intern',
-            desc: 'Worked on the admin system end to end (Vue 3 + Node.js), shipped a data-dashboard module, and learned the team’s engineering process.',
-            tags: ['React', 'Node.js', 'Webpack', 'CI/CD']
-          },
-          {
-            period: 'Jun 2023 — Aug 2023',
-            company: 'Startup C · Dev Intern',
-            role: 'Web Developer Intern',
-            desc: 'Built the team website and landing pages from scratch, handled mobile H5 and animations, and supported the first launch campaign.',
-            tags: ['Vue 2', 'Express', 'MongoDB', 'Nginx']
-          },
-          {
-            period: 'Jul 2022 — Sep 2022',
-            company: 'Studio D · Design/Dev Intern',
-            role: 'Front-End Developer Intern',
-            desc: 'Built UI components and page prototypes, learned design–dev collaboration, and shipped my first presentable portfolio page.',
-            tags: ['JavaScript', 'ECharts', 'jQuery']
-          }
-        ]
+        items: []
       }
     }
   }

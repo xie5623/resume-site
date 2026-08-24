@@ -28,6 +28,7 @@ import {
 import { useI18n } from '@/i18n'
 import { useSelection } from '@/composables/useSelection'
 import { exportStandaloneHtml } from '@/composables/useExport'
+import { REPO_URL } from '@/config/site.config'
 import ModuleRail from './console/ModuleRail.vue'
 import ModuleEditorTab from './console/ModuleEditorTab.vue'
 import ModuleConfigBar from './console/ModuleConfigBar.vue'
@@ -113,14 +114,22 @@ const l = {
   hint: { zh: '编辑即所见 · 实时预览', en: 'Edit → live preview' },
   export: { zh: '导出', en: 'Export' },
   exporting: { zh: '导出中…', en: 'Exporting…' },
-  exportTip: { zh: '导出为独立 HTML 文件（末尾附仓库地址）', en: 'Export as standalone HTML (repo link at the end)' },
-  exportFail: { zh: '导出失败，请查看控制台', en: 'Export failed — see console' }
+  exportTip: { zh: '导出为独立 HTML 文件（成品干净，不含署名/脚本）', en: 'Export as standalone HTML (clean output, no credit/scripts)' },
+  exportFail: { zh: '导出失败，请查看控制台', en: 'Export failed — see console' },
+  starTitle: { zh: '⭐ 喜欢这个简历模板吗？', en: '⭐ Like this resume template?' },
+  starText: { zh: '这是开源项目。如果喜欢，欢迎去 GitHub 点个 Star 支持一下；不需要也可以直接导出。', en: 'This is an open-source project. Like it? Give it a Star on GitHub — or just export directly.' },
+  starGo: { zh: '去 GitHub 点 Star ⭐', en: 'Star it on GitHub ⭐' },
+  starSkip: { zh: '直接导出', en: 'Export directly' }
 }
 
-/* ================= 导出独立成品 HTML（需求：导出功能） ================= */
+/* ================= 导出独立成品 HTML（需求：导出功能） =================
+   点「导出」先弹求 star 提示窗（编辑器内），成品文件保持干净
+   （不含署名/脚本）。「去点 Star」新标签打开仓库；两种选择都会导出。 */
 const exporting = ref(false)
 const exportError = ref('')
-async function onExport() {
+const showStar = ref(false)
+
+async function doExport() {
   if (exporting.value) return
   exporting.value = true
   exportError.value = ''
@@ -132,6 +141,20 @@ async function onExport() {
   } finally {
     exporting.value = false
   }
+}
+
+function onExport() {
+  if (exporting.value) return
+  showStar.value = true /* 先求 star */
+}
+function goStarAndExport() {
+  showStar.value = false
+  window.open(REPO_URL, '_blank', 'noopener')
+  doExport()
+}
+function skipStar() {
+  showStar.value = false
+  doExport()
 }
 </script>
 
@@ -227,6 +250,20 @@ async function onExport() {
 
   <!-- ======== 模块配置独立可拖拽浮窗（编辑态显示，跟随选中模块） ======== -->
   <ModuleConfigBar />
+
+  <!-- ======== 导出前求 star 弹窗（编辑器内，成品文件保持干净） ======== -->
+  <Transition name="star">
+    <div v-if="showStar" class="console-star-overlay" role="dialog" aria-modal="true" @click.self="skipStar">
+      <div class="console-star-modal">
+        <h3 class="console-star__title">{{ l.starTitle[lang] }}</h3>
+        <p class="console-star__text">{{ l.starText[lang] }}</p>
+        <div class="console-star__actions">
+          <button type="button" class="console-star__go" @click="goStarAndExport">{{ l.starGo[lang] }}</button>
+          <button type="button" class="console-star__skip" @click="skipStar">{{ l.starSkip[lang] }}</button>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
@@ -581,4 +618,75 @@ async function onExport() {
   .console-enter-active, .console-leave-active,
   .fab-enter-active, .fab-leave-active { transition: none; }
 }
+
+/* ================= 导出前求 star 弹窗（编辑器内 · 深色玻璃） ================= */
+.console-star-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 12, 24, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.console-star-modal {
+  max-width: 380px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px 26px;
+  border-radius: 18px;
+  background: #0f172a;
+  border: 1px solid rgba(130, 165, 255, 0.35);
+  color: #e9effc;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.console-star__title {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: #e9effc;
+}
+.console-star__text {
+  font-size: 13px;
+  line-height: 1.75;
+  color: rgba(214, 226, 255, 0.78);
+  margin: 0 0 20px;
+}
+.console-star__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.console-star__go,
+.console-star__skip {
+  display: block;
+  width: 100%;
+  padding: 11px 0;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+.console-star__go {
+  color: #060b16;
+  background: linear-gradient(135deg, #22d3ee, #a78bfa);
+}
+.console-star__go:hover { filter: brightness(1.08); }
+.console-star__skip {
+  color: rgba(214, 226, 255, 0.8);
+  background: transparent;
+  border-color: rgba(130, 165, 255, 0.35);
+}
+.console-star__skip:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* 弹窗淡入淡出 */
+.star-enter-active, .star-leave-active { transition: opacity 0.18s ease; }
+.star-enter-from, .star-leave-to { opacity: 0; }
 </style>

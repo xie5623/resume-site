@@ -45,38 +45,24 @@ export const CERTIFICATES_CONTENT = {
     }
   },
 
-  /* ===================== 应届生版：四六级 / 普通话 / 专业证书 ===================== */
+  /* ===================== 应届生版：暂无证书（后续补充） ===================== */
   graduate: {
     zh: {
       certificates: {
         kicker: 'CERTIFICATES',
         title: '证书认证',
-        subtitle: '英语、普通话与专业证书（占位示例）',
+        subtitle: '证书与荣誉整理中，后续将持续补充。',
         issuedBy: '颁发方',
-        items: [
-          { name: '英语六级（CET-6）', issuer: '教育部', year: '2024' },
-          { name: '普通话水平测试 · 二级甲等', issuer: '国家语委', year: '2023' },
-          { name: '计算机等级考试 · 二级 C 语言', issuer: '教育部考试中心', year: '2023' },
-          { name: '前端开发微专业证书', issuer: '示例在线学习平台', year: '2024' },
-          { name: 'Vue 3 实战训练营', issuer: '示例训练营', year: '2023' },
-          { name: '计算机等级考试 · 二级 Office', issuer: '教育部考试中心', year: '2022' }
-        ]
+        items: []
       }
     },
     en: {
       certificates: {
         kicker: 'CERTIFICATES',
         title: 'Certificates',
-        subtitle: 'English, Mandarin & professional certifications (placeholder)',
+        subtitle: 'Certificates & honors are being compiled — more to come soon.',
         issuedBy: 'Issued by',
-        items: [
-          { name: 'CET-6 English Proficiency', issuer: 'Ministry of Education', year: '2024' },
-          { name: 'Mandarin Proficiency · Level 2A', issuer: 'State Language Commission', year: '2023' },
-          { name: 'NCRE Level 2 · C Language', issuer: 'Ministry of Education Exam Center', year: '2023' },
-          { name: 'Frontend Micro-degree Certificate', issuer: 'Example Online Platform', year: '2024' },
-          { name: 'Vue 3 Bootcamp', issuer: 'Example Bootcamp', year: '2023' },
-          { name: 'NCRE Level 2 · Office', issuer: 'Ministry of Education Exam Center', year: '2022' }
-        ]
+        items: []
       }
     }
   }
